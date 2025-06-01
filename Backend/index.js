@@ -5,6 +5,7 @@ import express from 'express';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
 import { executeSetup } from './utils/default.js';
+import cookieParser from 'cookie-parser';
 
 const app = express();
 
@@ -14,6 +15,7 @@ connectDB();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 executeSetup();
 

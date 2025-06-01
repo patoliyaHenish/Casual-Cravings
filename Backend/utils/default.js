@@ -3,6 +3,7 @@ dotenv.config();
 import { pool } from '../config/db.js';
 import bcrypt from 'bcrypt';
 import { userTableQuery } from '../query/Tables/userTable.js';
+import { storeFileTableQuery } from '../query/tables/storeFileTable.js';
 
 const createRecipeDatabaseIfNotExists = async () => {
     const dbName = process.env.DB_NAME;
@@ -35,6 +36,7 @@ const createDefaultAdminUser = async () => {
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
     const adminName = 'Admin';
+    const is_verified = process.env.ADMIN_IS_VERIFIED === 'true';
 
     try {
         const result = await pool.query(
@@ -44,9 +46,9 @@ const createDefaultAdminUser = async () => {
         if (result.rowCount === 0) {
             const hashedPassword = await bcrypt.hash(adminPassword, 10);
             await pool.query(
-                `INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)`,
-                [adminName, adminEmail, hashedPassword, 'admin']
-            );
+    `INSERT INTO users (name, email, password, role, is_verified, created_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+    [adminName, adminEmail, hashedPassword, 'admin', is_verified, new Date()]
+);
             console.log('Default admin user created.');
         } else {
             console.log('Default admin user already exists.');
@@ -56,8 +58,18 @@ const createDefaultAdminUser = async () => {
     }
 };
 
+export const createFileStoreTableIfNotExists = async () => {
+    try {
+        await pool.query(storeFileTableQuery);
+        console.log('File store table checked/created successfully.');
+    } catch (error) {
+        console.error('Error creating file store table:', error);
+    }
+}
+
 export const executeSetup = async () => {
     await createRecipeDatabaseIfNotExists();
     await createUsersTableIfNotExists();
     await createDefaultAdminUser();
+    await createFileStoreTableIfNotExists();
 };

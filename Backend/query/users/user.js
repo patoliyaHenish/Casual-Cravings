@@ -2,11 +2,24 @@ export const getUserByEmailQuery = `
     SELECT * FROM users WHERE email = $1
 `;
 
-export const insertUserWithProfilePicQuery = `
+export const insertUser = `
     INSERT INTO users (
-        name, email, password, role,
-        profile_pic_file_name, profile_pic_content_type, profile_pic_data, profile_pic_size
+        name, email, password, created_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING id, name, email, role, created_at, profile_pic_file_name, profile_pic_content_type, profile_pic_size
+    VALUES ($1, $2, $3)
+    RETURNING id, name, email, password
+`;
+
+export const updateResetTokenByEmail = `
+    UPDATE users
+    SET reset_password_token = $1,
+        reset_password_expires = $2
+    WHERE email = $3
+`;
+
+export const getUserByEmailAndResetToken = `
+    SELECT email FROM users 
+    WHERE email = $1
+      AND reset_password_token = $2
+      AND reset_password_expires > NOW()
 `;
