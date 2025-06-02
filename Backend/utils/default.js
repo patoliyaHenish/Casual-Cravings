@@ -8,7 +8,7 @@ import { storeFileTableQuery } from '../query/tables/storeFileTable.js';
 const createRecipeDatabaseIfNotExists = async () => {
     const dbName = process.env.DB_NAME;
 
-     try {
+    try {
         const result = await pool.query(
             `SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]
         );
@@ -46,9 +46,9 @@ const createDefaultAdminUser = async () => {
         if (result.rowCount === 0) {
             const hashedPassword = await bcrypt.hash(adminPassword, 10);
             await pool.query(
-    `INSERT INTO users (name, email, password, role, is_verified, created_at) VALUES ($1, $2, $3, $4, $5, $6)`,
-    [adminName, adminEmail, hashedPassword, 'admin', is_verified, new Date()]
-);
+                `INSERT INTO users (name, email, password, role, is_verified, created_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+                [adminName, adminEmail, hashedPassword, 'admin', is_verified, new Date()]
+            );
             console.log('Default admin user created.');
         } else {
             console.log('Default admin user already exists.');

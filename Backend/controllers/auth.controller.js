@@ -9,7 +9,7 @@ import {
 import { deleteToken, generateToken } from '../utils/generateToken.js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
-import { storeFile } from '../utils/helper.js';
+import { generateAndSendOtp, storeFile } from '../utils/helper.js';
 dotenv.config();
 
 export const register = async (req, res) => {
@@ -56,9 +56,14 @@ export const register = async (req, res) => {
             });
         }
 
-        return generateToken(res, user, 'Registered successfully');
+        await generateAndSendOtp(email, pool);
+
+        return res.status(200).json({
+            success: true,
+            message: 'OTP sent to your email.',
+        });
     } catch (err) {
-        console.error('Error registering:', err);
+        console.error('Error while register:', err);
         return handleServerError(res, err);
     }
 };
@@ -73,14 +78,19 @@ export const verifyOtp = async (req, res) => {
         if (userResult.rowCount === 0) {
             return handleValidationError(res, 'Invalid or expired OTP.', 400);
         }
+        const user = userResult.rows[0];
+
         await pool.query(
             `UPDATE users SET is_verified = TRUE, otp_code = NULL, otp_expires = NULL WHERE email = $1`,
             [email]
         );
-        return res.status(200).json({
-            success: true,
-            message: 'Email verified successfully. You can now log in.',
-        });
+
+        const userResponse = {
+            name: user.name,
+            email: user.email
+        };
+
+        return generateToken(res, userResponse, 'Registered successfully');
     } catch (err) {
         console.error('Error verifying OTP:', err);
         return handleServerError(res, err);

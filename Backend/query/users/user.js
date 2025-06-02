@@ -6,7 +6,7 @@ export const insertUser = `
     INSERT INTO users (
         name, email, password, created_at
     )
-    VALUES ($1, $2, $3)
+    VALUES ($1, $2, $3, $4)
     RETURNING id, name, email, password
 `;
 
