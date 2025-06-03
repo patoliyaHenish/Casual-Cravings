@@ -19,6 +19,7 @@ const isAuthenticated = async (req, res, next) => {
     req.id = decode.userId;
     req.user = decode;
     req.email = decode.email;
+    req.role = decode.role;
     req.isAuthenticated = true
     next();
   } catch (error) {

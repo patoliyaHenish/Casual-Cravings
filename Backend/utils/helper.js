@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { handleValidationError } from './erroHandler.js';
 
 export const validate = (schema) => async (req, res, next) => {
     try {
@@ -76,4 +77,14 @@ export const generateAndSendOtp = async (email, pool) => {
         console.error('Error generating or sending OTP:', err);
         throw err;
     }
+};
+
+export const checkRole = (roles = []) => {
+    return (req, res, next) => {
+        const allowedRoles = Array.isArray(roles) ? roles : [roles];
+        if (!req.user || !allowedRoles.includes(req.user.role)) {
+            return handleValidationError(res, 'Forbidden: You do not have permission to perform this action', 403);
+        }
+        next();
+    };
 };

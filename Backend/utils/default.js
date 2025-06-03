@@ -2,8 +2,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { pool } from '../config/db.js';
 import bcrypt from 'bcrypt';
-import { userTableQuery } from '../query/Tables/userTable.js';
-import { storeFileTableQuery } from '../query/tables/storeFileTable.js';
+import { userTableQuery } from '../query/users/userTable.js';
+import { storeFileTableQuery } from '../query/files/storeFileTable.js';
+import { createRecipeCategoryTable } from '../query/recipe/recipeCategoryTable.js';
 
 const createRecipeDatabaseIfNotExists = async () => {
     const dbName = process.env.DB_NAME;
@@ -65,11 +66,21 @@ export const createFileStoreTableIfNotExists = async () => {
     } catch (error) {
         console.error('Error creating file store table:', error);
     }
-}
+};
+
+const createRecipeCategoryTableIfNotExists = async () => {
+    try {
+        await pool.query(createRecipeCategoryTable);
+        console.log('Recipe category table checked/created successfully.');
+    } catch (error) {
+        console.error('Error creating recipe category table:', error);
+    }
+};
 
 export const executeSetup = async () => {
     await createRecipeDatabaseIfNotExists();
     await createUsersTableIfNotExists();
     await createDefaultAdminUser();
-    await createFileStoreTableIfNotExists();
+    await createFileStoreTableIfNotExists();  
+    await createRecipeCategoryTableIfNotExists();
 };
