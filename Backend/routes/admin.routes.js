@@ -9,4 +9,5 @@ const router = express.Router();
 
 router.post('/create-recipe-category', isAuthenticated, checkRole(['admin']), validate(recipeCategoryValidationSchema), createRecipeCategories);
 
+
 export default router;

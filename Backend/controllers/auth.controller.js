@@ -115,7 +115,8 @@ export const login = async (req, res) => {
 
         const userResponse = {
             name: user.name,
-            email: user.email
+            email: user.email,
+            role: user.role
         };
 
         return generateToken(res, userResponse, 'Login successful');

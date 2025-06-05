@@ -1,3 +1,4 @@
+import { pool } from "../config/db.js";
 import { handleServerError, handleValidationError } from "../utils/erroHandler.js";
 
 export const createRecipeCategories = async (req, res) => {
