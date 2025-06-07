@@ -11,7 +11,7 @@ export const checkRecipeCategoryExistsQuery = `
 export const getRecipeCategoriesQuery = `
     SELECT * FROM recipe_category
     WHERE ($1::text IS NULL OR LOWER(name) LIKE LOWER('%' || $1 || '%'))
-    ORDER BY created_at DESC
+    ORDER BY name DESC
     LIMIT $2 OFFSET $3;
 `;
 

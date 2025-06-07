@@ -3,10 +3,9 @@ dotenv.config();
 
 import express from 'express';
 import { connectDB } from './config/db.js';
-import authRoutes from './routes/auth.routes.js';
-import adminRoutes from './routes/admin.routes.js';
 import { executeSetup } from './utils/default.js';
 import cookieParser from 'cookie-parser';
+import router from './routes/index.js';
 
 const app = express();
 
@@ -20,8 +19,7 @@ app.use(cookieParser());
 
 executeSetup();
 
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api', router);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

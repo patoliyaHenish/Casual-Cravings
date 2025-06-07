@@ -1,5 +1,5 @@
 import express from 'express';
-import { createRecipeCategories, deleteRecipeCategoryById, getRecipeCategories, getRecipeCategoryById, updateRecipeCategoryById } from '../controllers/admin.controller.js';
+import { createRecipeCategories, deleteRecipeCategoryById, getRecipeCategories, getRecipeCategoryById, updateRecipeCategoryById } from '../controllers/category.controller.js';
 import isAuthenticated from '../middlewares/auth.middleware.js';
 import { validate } from '../utils/helper.js';
 import { recipeCategoryValidationSchema } from '../validations/adminValidation.js';
