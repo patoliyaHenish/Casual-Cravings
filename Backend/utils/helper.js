@@ -3,7 +3,7 @@ import { handleValidationError } from './erroHandler.js';
 
 export const validate = (schema) => async (req, res, next) => {
     try {
-        req.body = await schema.validate(req.body, { abortEarly: false, stripUnknown: true });
+        await schema.validate(req.body, { abortEarly: false});
         next();
     } catch (err) {
         return res.status(400).json({
@@ -11,40 +11,6 @@ export const validate = (schema) => async (req, res, next) => {
             message: 'Validation error',
             errors: err.errors,
         });
-    }
-};
-
-export const storeFile = async (pool, {
-    tableName,
-    tableId,
-    fieldName,
-    fileName,
-    contentType,
-    fileData,
-    fileSize
-}) => {
-    if (fileName && contentType && fileData && fileSize) {
-        const buffer = Buffer.from(fileData, 'base64');
-        try {
-            await pool.query(
-                `INSERT INTO store_files 
-                    (table_name, table_id, field_name, file_name, content_type, file_data, file_size)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [
-                    tableName,
-                    tableId,
-                    fieldName,
-                    fileName,
-                    contentType,
-                    buffer,
-                    fileSize
-                ]
-            );
-            console.log(`File stored for ${tableName} id:`, tableId);
-        } catch (fileErr) {
-            console.error('Error storing file:', fileErr);
-            throw fileErr;
-        }
     }
 };
 
@@ -87,4 +53,35 @@ export const checkRole = (roles = []) => {
         }
         next();
     };
+};
+
+export const safeDeleteLocalFile = async (filePath) => {
+    if (!filePath) return;
+    try {
+        await import('fs/promises').then(fs => fs.unlink(filePath));
+    } catch (err) {
+        if (err.code !== 'ENOENT') {
+            console.error('Error deleting local file:', err);
+        }
+    }
+};
+
+export const uploadImageAndCleanup = async (imagePath, folder, uploadFn) => {
+    const uploadResult = await uploadFn(imagePath, folder);
+    await safeDeleteLocalFile(imagePath);
+    return uploadResult.secure_url;
+};
+
+export const deleteCloudinaryImageByUrl = async (imageUrl, folder, deleteFn) => {
+    if (imageUrl) {
+        const publicIdMatch = imageUrl.match(/\/([^\/]+)\.[a-zA-Z]+$/);
+        if (publicIdMatch && publicIdMatch[1]) {
+            const publicId = `${folder}/${publicIdMatch[1]}`;
+            try {
+                await deleteFn(publicId);
+            } catch (err) {
+                console.error('Error deleting old image from Cloudinary:', err);
+            }
+        }
+    }
 };

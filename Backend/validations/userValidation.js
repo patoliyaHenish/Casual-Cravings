@@ -11,10 +11,6 @@ export const registerSchema = yup.object().shape({
         .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
         .matches(/[0-9]/, 'Password must contain at least one number')
         .matches(/[@$!%*?&#]/, 'Password must contain at least one special character'),
-    fileName: yup.string().nullable(),
-    contentType: yup.string().nullable(),
-    fileData: yup.string().nullable(),
-    fileSize: yup.number().nullable(),
 });
 
 export const loginSchema = yup.object().shape({
@@ -37,7 +33,7 @@ export const changePasswordSchema = yup.object().shape({
         .matches(/[@$!%*?&#]/, 'New password must contain at least one special character'),
 });
 
-export const forgetPasswordSchema = yup.object().shape({
+export const emailValidationSchema = yup.object().shape({
     email: yup.string().email('Invalid email').required('Email is required'),
 });
 

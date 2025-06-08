@@ -8,6 +8,7 @@ export const recipeCategoryValidationSchema = yup.object().shape({
         .max(100, 'Category name must be at most 100 characters'),
     description: yup
         .string()
-        .nullable()
-        .max(500, 'Description must be at most 500 characters'),
+        .required('Description is required')
+        .min(10, 'Description must be at least 10 characters')
+        .max(500, 'Description must be at most 500 characters')
 });

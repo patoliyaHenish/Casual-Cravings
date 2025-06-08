@@ -4,6 +4,7 @@ export const userTableQuery = `
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
+        profile_picture VARCHAR(255),
         bio TEXT,
         role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
         reset_password_token VARCHAR(255),

@@ -1,8 +1,10 @@
 import { pool } from "../config/db.js";
-import { checkRecipeCategoryExistsQuery, getRecipeCategoriesCountQuery, getRecipeCategoriesQuery, insertRecipeCategoryQuery } from "../query/recipe category/recipeCategory.js";
+import { checkRecipeCategoryExistsQuery, getRecipeCategoriesCountQuery, getRecipeCategoriesQuery, insertRecipeCategoryQuery, updateRecipeCategoryQuery } from "../query/recipe category/recipeCategory.js";
 import { handleServerError, handleValidationError } from "../utils/erroHandler.js";
+import { uploadToClodinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { deleteCloudinaryImageByUrl, safeDeleteLocalFile, uploadImageAndCleanup } from "../utils/helper.js";
 
-export const createRecipeCategories = async (req, res) => {
+export const createRecipeCategory = async (req, res) => {
     try {
         const { name, description } = req.body;
 
@@ -16,7 +18,15 @@ export const createRecipeCategories = async (req, res) => {
             return handleValidationError(res, "Category already exists", 409);
         }
 
-        const insertResult = await pool.query(insertRecipeCategoryQuery, [name.trim(), description || null]);
+        let imageUrl = null;
+        let imagePath = null;
+
+        if (req.files && req.files.recipeCategoryProfileImage && req.files.recipeCategoryProfileImage.length > 0) {
+            imagePath = req.files.recipeCategoryProfileImage[0].path;
+            imageUrl = await uploadImageAndCleanup(imagePath, 'recipe_category_images', uploadToClodinary);
+        }
+
+        const insertResult = await pool.query(insertRecipeCategoryQuery, [name.trim(), description || null, imageUrl || null]);
 
         if (insertResult.rowCount === 0) {
             return handleValidationError(res, "Failed to create category", 500);
@@ -27,6 +37,7 @@ export const createRecipeCategories = async (req, res) => {
             message: "Recipe category created successfully",
         });
     } catch (error) {
+         await safeDeleteLocalFile(imagePath);
         return handleServerError(res, error);
     }
 };
@@ -122,16 +133,25 @@ export const updateRecipeCategoryById = async (req, res) => {
             return handleValidationError(res, "Category already exists", 409);
         }
 
+        const currentCategory = await pool.query("SELECT image FROM recipe_category WHERE category_id = $1", [id]);
+        let imageUrl = currentCategory.rows[0]?.image || null;
+        let imagePath = null;
+
+         if (req.files && req.files.recipeCategoryProfileImage && req.files.recipeCategoryProfileImage.length > 0) {
+            imagePath = req.files.recipeCategoryProfileImage[0].path;
+            await deleteCloudinaryImageByUrl(imageUrl, 'recipe_category_images', deleteFromCloudinary);
+            imageUrl = await uploadImageAndCleanup(imagePath, 'recipe_category_images', uploadToClodinary);
+        }
+
         const updateResult = await pool.query(
-            "UPDATE recipe_category SET name = $1, description = $2 WHERE category_id = $3 RETURNING *",
-            [name.trim(), description || null, id]
+            updateRecipeCategoryQuery,
+            [name.trim(), description || null, imageUrl, id]
         );
 
         if (updateResult.rowCount === 0) {
             return handleValidationError(res, "Failed to update category", 500);
         }
 
-        // Remove category_id from the response
         const { category_id, ...categoryWithoutId } = updateResult.rows[0];
 
         return res.status(200).json({
@@ -140,6 +160,7 @@ export const updateRecipeCategoryById = async (req, res) => {
             data: categoryWithoutId
         });
     } catch (error) {
+        await safeDeleteLocalFile(imagePath);
         return handleServerError(res, error);
     }
 };

@@ -4,10 +4,10 @@ export const getUserByEmailQuery = `
 
 export const insertUser = `
     INSERT INTO users (
-        name, email, password, created_at
+        name, email, password, profile_picture
     )
     VALUES ($1, $2, $3, $4)
-    RETURNING id, name, email, password
+    RETURNING name, email, password, profile_picture
 `;
 
 export const updateResetTokenByEmail = `

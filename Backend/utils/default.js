@@ -3,7 +3,6 @@ dotenv.config();
 import { pool } from '../config/db.js';
 import bcrypt from 'bcrypt';
 import { userTableQuery } from '../query/users/userTable.js';
-import { storeFileTableQuery } from '../query/files/storeFileTable.js';
 import { createRecipeCategoryTable } from '../query/recipe category/recipeCategoryTable.js';
 import { createSubCategoryTable } from '../query/sub category/subCategoryTable.js';
 import { createRecipeTable } from '../query/recipe/recipeTable.js';
@@ -52,20 +51,12 @@ const createDefaultAdminUser = async () => {
         if (result.rowCount === 0) {
             const hashedPassword = await bcrypt.hash(adminPassword, 10);
             await pool.query(
-                `INSERT INTO users (name, email, password, role, is_verified, bio,created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [adminName, adminEmail, hashedPassword, 'admin', is_verified, adminBio, new Date()]
+                `INSERT INTO users (name, email, password, role, is_verified, bio) VALUES ($1, $2, $3, $4, $5, $6)`,
+                [adminName, adminEmail, hashedPassword, 'admin', is_verified, adminBio]
             );
         }
     } catch (err) {
         console.error('Error creating default admin user:', err);
-    }
-};
-
-const createFileStoreTableIfNotExists = async () => {
-    try {
-        await pool.query(storeFileTableQuery);
-    } catch (error) {
-        console.error('Error creating file store table:', error);
     }
 };
 
@@ -145,7 +136,6 @@ export const executeSetup = async () => {
     await createRecipeDatabaseIfNotExists();
     await createUsersTableIfNotExists();
     await createDefaultAdminUser();
-    await createFileStoreTableIfNotExists();  
     await createRecipeCategoryTableIfNotExists();
     await createSubCategoryTableIfNotExists();
     await createRecipeTableIfNotExists();

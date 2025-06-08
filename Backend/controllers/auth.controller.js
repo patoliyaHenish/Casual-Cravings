@@ -9,18 +9,16 @@ import {
 import { deleteToken, generateToken } from '../utils/generateToken.js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
-import { generateAndSendOtp, storeFile } from '../utils/helper.js';
+import { generateAndSendOtp } from '../utils/helper.js';
+import { uploadToClodinary } from '../utils/cloudinary.js';
+import fs from 'fs';
 dotenv.config();
 
 export const register = async (req, res) => {
     const {
         name,
         email,
-        password,
-        fileName,
-        contentType,
-        fileData,
-        fileSize
+        password
     } = req.body;
 
     try {
@@ -29,32 +27,30 @@ export const register = async (req, res) => {
             return handleValidationError(res, 'User already exists with this email.', 409);
         }
 
+        let profilePicUrl = null;
+        let profilePicPath = null;
+        
+        if (req.files && req.files.profilePic && req.files.profilePic.length > 0) {
+            profilePicPath = req.files.profilePic[0].path;
+            const uploadResult = await uploadToClodinary(profilePicPath, 'profile_pics');
+            profilePicUrl = uploadResult.secure_url;
+
+            fs.unlink(profilePicPath, (err) => {
+                if (err) console.error('Error deleting local file:', err);
+            });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const result = await pool.query(
+        await pool.query(
             insertUser,
             [
                 name,
                 email,
                 hashedPassword,
-                new Date()
+                profilePicUrl,
             ] 
         );
-
-        const user = result.rows[0];
-        console.log('User registered:', user);
-
-        if (fileName && contentType && fileData && fileSize) {
-            await storeFile(pool, {
-                tableName: 'users',
-                tableId: user.id,
-                fieldName: 'profile_picture',
-                fileName,
-                contentType,
-                fileData,
-                fileSize
-            });
-        }
 
         await generateAndSendOtp(email, pool);
 
@@ -63,6 +59,11 @@ export const register = async (req, res) => {
             message: 'OTP sent to your email.',
         });
     } catch (err) {
+         if (profilePicPath) {
+            fs.unlink(profilePicPath, (unlinkErr) => {
+                if (unlinkErr) console.error('Error deleting local file after error:', unlinkErr);
+            });
+        }
         console.error('Error while register:', err);
         return handleServerError(res, err);
     }
@@ -93,6 +94,30 @@ export const verifyOtp = async (req, res) => {
         return generateToken(res, userResponse, 'Registered successfully');
     } catch (err) {
         console.error('Error verifying OTP:', err);
+        return handleServerError(res, err);
+    }
+};
+
+export const resendOtp = async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const userResult = await pool.query(getUserByEmailQuery, [email]);
+        if (userResult.rowCount === 0) {
+            return handleNotFoundError(res, 'User not found.', 404);
+        }
+        const user = userResult.rows[0];
+        if (user.is_verified === true) {
+            return handleValidationError(res, 'User already verified.', 400);
+        }
+
+        await generateAndSendOtp(email, pool);
+        return res.status(200).json({
+            success: true,
+            message: 'OTP resent to your email.',
+        });
+    } catch (err) { 
+        console.error('Error resending OTP:', err);
         return handleServerError(res, err);
     }
 };
