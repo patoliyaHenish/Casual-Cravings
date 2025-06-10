@@ -3,7 +3,7 @@ export const createRecipeTable = `
         recipe_id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         category_id INTEGER REFERENCES recipe_category(category_id),
-        sub_category_id INTEGER REFERENCES sub_category(sub_category_id),
+        sub_category_id INTEGER REFERENCES recipe_sub_category(sub_category_id),
         title VARCHAR(255) NOT NULL,
         description TEXT NOT NULL,
         ingredients INTEGER[] NOT NULL,

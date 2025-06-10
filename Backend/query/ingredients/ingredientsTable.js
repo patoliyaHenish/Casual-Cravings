@@ -1,6 +1,7 @@
 export const createIngredientsTable = `
     CREATE TABLE IF NOT EXISTS ingredients (
         ingredient_id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE
+        name VARCHAR(100) NOT NULL UNIQUE,
+        description TEXT DEFAULT NULL
     );
 `;
