@@ -1,6 +1,6 @@
 import { pool } from '../config/db.js';
 import bcrypt from 'bcrypt';
-import { getUserByEmailAndResetToken, getUserByEmailQuery, insertUser, updateResetTokenByEmail } from '../query/users/user.js';
+import { getUserByEmailAndResetToken, getUserByEmailQuery, getUserProfileByEmail, insertUser, updateResetTokenByEmail } from '../query/users/user.js';
 import {
     handleValidationError,
     handleServerError,
@@ -10,7 +10,7 @@ import { deleteToken, generateToken } from '../utils/generateToken.js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import { generateAndSendOtp } from '../utils/helper.js';
-import { uploadToClodinary } from '../utils/cloudinary.js';
+import { uploadToClodinary, deleteFromCloudinary } from '../utils/cloudinary.js';
 import fs from 'fs';
 dotenv.config();
 
@@ -88,7 +88,9 @@ export const verifyOtp = async (req, res) => {
 
         const userResponse = {
             name: user.name,
-            email: user.email
+            email: user.email,
+            profilePic: user?.profile_pic,
+            role: user.role || 'user',
         };
 
         return generateToken(res, userResponse, 'Registered successfully');
@@ -138,10 +140,15 @@ export const login = async (req, res) => {
             return handleValidationError(res, 'Invalid email or password.', 401);
         }
 
+        if (!user.is_verified) {
+            return handleValidationError(res, 'Please verify your email before logging in.', 403);
+        }
+
         const userResponse = {
             name: user.name,
             email: user.email,
-            role: user.role
+            profilePic: user?.profile_pic,
+            role: user.role || 'user',
         };
 
         return generateToken(res, userResponse, 'Login successful');
@@ -209,7 +216,7 @@ export const forgetPassword = async (req, res) => {
 
         await pool.query(updateResetTokenByEmail, [resetToken, expires, email]);
 
-        const resetLink = `${process.env.FRONTEND_URL}/api/auth/reset-password/${email}/${resetToken}`
+        const resetLink = `${process.env.FRONTEND_URL}/reset-password/${email}/${resetToken}`
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -269,6 +276,104 @@ export const resetPassword = async (req, res) => {
 
     } catch (error) {
         console.error('Error in resetPassword:', error);
+        return handleServerError(res, error);
+    }
+};
+
+export const myProfile = async (req, res) => {
+    try {
+        const userResult = await pool.query(getUserProfileByEmail, [req.user.email]);
+
+        if (userResult.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        const user = userResult.rows[0];
+
+        return res.status(200).json({
+            success: true,
+            user: {
+                name: user.name,
+                email: user.email,
+                profile_picture: user.profile_picture,
+                bio: user.bio,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        return handleServerError(res, error);
+    }
+};
+
+export const updateProfile = async (req, res) => {
+    try {
+        const { name, bio } = req.body;
+        const email = req.user.email;
+
+        const userResult = await pool.query(getUserByEmailQuery, [email]);
+        if (userResult.rowCount === 0) {
+            return handleNotFoundError(res, 'Not authenticated.', 401);
+        }
+
+        const user = userResult.rows[0];
+
+        const updatedName = name || user.name;
+        const updatedBio = bio || user.bio;
+
+        let profilePicUrl = user.profile_picture;
+        let profilePicPath = null;
+
+        if (req.files && req.files.profilePic && req.files.profilePic.length > 0) {
+            profilePicPath = req.files.profilePic[0].path;
+
+            if (user.profile_picture) {
+                const urlParts = user.profile_picture.split('/');
+                const fileName = urlParts[urlParts.length - 1];
+                const [publicId] = fileName.split('.'); 
+                const folder = 'profile_pics';
+                const publicIdWithFolder = `${folder}/${publicId}`;
+                try {
+                    await deleteFromCloudinary(publicIdWithFolder);
+                } catch (err) {
+                    console.error('Error deleting previous profile pic from Cloudinary:', err);
+                }
+            }
+
+            const uploadResult = await uploadToClodinary(profilePicPath, 'profile_pics');
+            profilePicUrl = uploadResult.secure_url;
+
+            fs.unlink(profilePicPath, (err) => {
+                if (err) console.error('Error deleting local file:', err);
+            });
+        }
+
+        await pool.query(
+            `UPDATE users
+             SET name = $1, bio = $2, profile_picture = $3
+             WHERE email = $4`,
+            [updatedName, updatedBio, profilePicUrl, email]
+        );
+
+        const updatedUserResult = await pool.query(getUserProfileByEmail, [email]);
+        if (updatedUserResult.rowCount === 0) {
+            return handleServerError(res, 'Failed to fetch updated user profile.');
+        }
+
+        const updatedUser = updatedUserResult.rows[0];
+        return res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully.',
+            user: {
+                name: updatedUser.name,
+                email: updatedUser.email,
+                profile_picture: updatedUser.profile_picture,
+                bio: updatedUser.bio,
+                role: updatedUser.role
+            }
+        });
+    } catch (error) {
+        console.error('Error updating profile:', error);
         return handleServerError(res, error);
     }
 };

@@ -23,3 +23,7 @@ export const getUserByEmailAndResetToken = `
       AND reset_password_token = $2
       AND reset_password_expires > NOW()
 `;
+
+export const getUserProfileByEmail = `
+    SELECT name, email, profile_picture, bio, role FROM users WHERE email = $1
+`;

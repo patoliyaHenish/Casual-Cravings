@@ -47,3 +47,10 @@ export const resetPasswordSchema = yup.object().shape({
         .matches(/[0-9]/, 'New password must contain at least one number')
         .matches(/[@$!%*?&#]/, 'New password must contain at least one special character'),
 });
+
+export const updateProfileSchema = yup.object().shape({
+    name: yup.string().max(255, 'Name must be at most 255 characters'),
+    email: yup.string().email('Invalid email').max(255, 'Email must be at most 255 characters'),
+    bio: yup.string().max(500, 'Bio must be at most 500 characters'),
+    profilePic: yup.mixed().nullable(),
+});
