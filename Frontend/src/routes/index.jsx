@@ -8,7 +8,7 @@ import ResetPassword from "../pages/ResetPassword";
 import ProtectedRoute from "./ProtectedRoute";
 import MyProfile from "../pages/users/MyProfile";
 import UserNotAuthentiCated from "../components/UserNotAuthentiCated";
-import Category from "../pages/admin/category management/Category";
+import RecipeCategory from "../pages/admin/category management/RecipeCategory";
 
 export const appRouter = createBrowserRouter([
     {
@@ -44,10 +44,10 @@ export const appRouter = createBrowserRouter([
                 )
             },
             {
-                path: "category-management",
+                path: "/admin/manage-recipe-category",
                 element: (
                     <ProtectedRoute allowedRoles={["admin"]}>
-                        <Category/>
+                        <RecipeCategory />
                     </ProtectedRoute>
                 )
             }
