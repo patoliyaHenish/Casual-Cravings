@@ -1,4 +1,4 @@
-import { Category, CategoryOutlined, ExpandMore, Group, Logout, Person, Settings } from '@mui/icons-material';
+import { Category, CategoryOutlined, ExpandMore, Group, Logout, Person, RestaurantMenu, Settings } from '@mui/icons-material';
 import React, { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -10,9 +10,14 @@ const adminLinks = [
     icon: <Settings />,
     subItems: [
       { to: '/admin/manage-recipe-category', label: 'Manage Category', icon: <Category /> },
-      { to: '/admin/subcategories', label: 'Manage Sub Category', icon: <CategoryOutlined /> }
+      { to: '/admin/manage-recipe-subcategories', label: 'Manage Sub-Category', icon: <CategoryOutlined /> }
     ]
   },
+  {
+    label: 'Manage Ingredients',
+    icon: <RestaurantMenu />,
+    to: '/admin/manage-ingredients',
+  }
 ];
 
 const AdminVerticalNavbar = ({ open, setOpen }) => {
@@ -51,21 +56,20 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={`
-    h-screen bg-[#fff3e07b] text-[#2C1400] shadow-lg flex flex-col
+   h-screen bg-[#ffffff] text-[#2C1400] shadow-lg flex flex-col
     transition-all duration-300
     ${open ? 'w-80' : 'w-20'}
-    ${open ? 'block' : 'hidden'}
-    fixed md:static md:block
+    fixed md:static
     top-0 left-0 z-50
+    ${open ? 'block' : 'hidden'} md:block
   `}
         style={{
           minWidth: open ? '16rem' : '5rem',
           height: '100vh',
-          ...(window.innerWidth < 768 && !open ? { display: 'none' } : {}),
         }}
       >
 
-        <ul className="flex flex-col space-y-2 px-2 pt-20">
+        <ul className="flex flex-col space-y-2 px-2 pt-24">
           {adminLinks.map(link => {
             if (link.subItems) {
               const isAnySubActive = link.subItems.some(sub => location.pathname === sub.to);
@@ -92,44 +96,44 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
                       />
                     )}
                   </div>
-                   {open && isOpen && (
-                  <ul
-                    className="mt-1 bg-white shadow rounded flex flex-col gap-1 py-2 z-40
+                  {open && isOpen && (
+                    <ul
+                      className="mt-1 bg-white shadow rounded flex flex-col gap-1 py-2 z-40
                       transition-all duration-300
                       origin-top
                       animate-dropdown"
-                    style={{
-                      maxHeight: isOpen ? '500px' : '0px',
-                      opacity: isOpen ? 1 : 0,
-                      overflow: 'hidden',
-                      transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
-                      minWidth: open ? '19rem' : '5rem',
-                      width: open ? '19rem' : '5rem',  
-                    }}
-                  >
-                    {link.subItems.map(sub => {
-                      const isSubActive = location.pathname === sub.to;
-                      return (
-                        <li key={sub.to}>
-                          <Link
-                            to={sub.to}
-                            className={`flex items-center gap-2 py-1 px-4 rounded transition font-medium
+                      style={{
+                        maxHeight: isOpen ? '500px' : '0px',
+                        opacity: isOpen ? 1 : 0,
+                        overflow: 'hidden',
+                        transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+                        minWidth: open ? '19rem' : '5rem',
+                        width: open ? '19rem' : '5rem',
+                      }}
+                    >
+                      {link.subItems.map(sub => {
+                        const isSubActive = location.pathname === sub.to;
+                        return (
+                          <li key={sub.to}>
+                            <Link
+                              to={sub.to}
+                              className={`flex items-center gap-2 py-1 px-4 rounded transition font-medium
                               ${isSubActive ? 'bg-[#E06B00] text-white' : 'hover:bg-[#E06B00]/10'}
                             `}
-                            style={{ color: isSubActive ? '#FFFFFF' : '#2C1400' }}
-                            onClick={() => {
-                              setOpen(false);
-                              setSubmenuOpen(null);
-                            }}
-                          >
-                            <span className="text-lg">{sub.icon}</span>
-                            <span className="whitespace-nowrap">{sub.label}</span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                              style={{ color: isSubActive ? '#FFFFFF' : '#2C1400' }}
+                              onClick={() => {
+                                setOpen(false);
+                                setSubmenuOpen(null);
+                              }}
+                            >
+                              <span className="text-lg">{sub.icon}</span>
+                              <span className="whitespace-nowrap">{sub.label}</span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </li>
               );
             }

@@ -87,6 +87,7 @@ export const verifyOtp = async (req, res) => {
         );
 
         const userResponse = {
+            id: user.user_id,
             name: user.name,
             email: user.email,
             profilePic: user?.profile_pic,
@@ -145,6 +146,7 @@ export const login = async (req, res) => {
         }
 
         const userResponse = {
+            id: user.user_id,
             name: user.name,
             email: user.email,
             profilePic: user?.profile_pic,

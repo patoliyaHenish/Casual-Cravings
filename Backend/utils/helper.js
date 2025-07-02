@@ -85,3 +85,12 @@ export const deleteCloudinaryImageByUrl = async (imageUrl, folder, deleteFn) => 
         }
     }
 };
+
+export const getYouTubeThumbnail = (url) => {
+    const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const match = url.match(regExp);
+    if (match && match[1]) {
+        return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
+    }
+    return null;
+}

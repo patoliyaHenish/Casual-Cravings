@@ -5,11 +5,16 @@ import { uploadToClodinary, deleteFromCloudinary } from "../utils/cloudinary.js"
 import { deleteCloudinaryImageByUrl, safeDeleteLocalFile, uploadImageAndCleanup } from "../utils/helper.js";
 
 export const createRecipeCategory = async (req, res) => {
+    let imagePath = null;
     try {
         const { name, description } = req.body;
 
         if (!name) {
             return handleValidationError(res, "Category name is required");
+        }
+
+        if (name.length < 2 || name.length > 100) {
+            return handleValidationError(res, "Category name must be between 2 and 100 characters");
         }
 
         const checkResult = await pool.query(checkRecipeCategoryExistsQuery, [name.trim()]);
@@ -19,7 +24,6 @@ export const createRecipeCategory = async (req, res) => {
         }
 
         let imageUrl = null;
-        let imagePath = null;
 
         if (req.files && req.files.recipeCategoryProfileImage && req.files.recipeCategoryProfileImage.length > 0) {
             imagePath = req.files.recipeCategoryProfileImage[0].path;
@@ -37,7 +41,8 @@ export const createRecipeCategory = async (req, res) => {
             message: "Recipe category created successfully",
         });
     } catch (error) {
-         await safeDeleteLocalFile(imagePath);
+    console.error("Error creating recipe category:", error);
+        await safeDeleteLocalFile(imagePath);
         return handleServerError(res, error);
     }
 };
@@ -99,10 +104,19 @@ export const deleteRecipeCategoryById = async (req, res) => {
             return handleValidationError(res, "Category ID is required");
         }
 
-        const result = await pool.query("DELETE FROM recipe_category WHERE category_id = $1 RETURNING *", [id]);
+        const categoryResult = await pool.query("SELECT image FROM recipe_category WHERE category_id = $1", [id]);
+        if (categoryResult.rowCount === 0) {
+            return handleValidationError(res, "Category not found", 404);
+        }
+        const imageUrl = categoryResult.rows[0]?.image;
 
+        const result = await pool.query("DELETE FROM recipe_category WHERE category_id = $1 RETURNING *", [id]);
         if (result.rowCount === 0) {
             return handleValidationError(res, "Category not found", 404);
+        }
+
+        if (imageUrl) {
+            await deleteCloudinaryImageByUrl(imageUrl, 'recipe_category_images', deleteFromCloudinary);
         }
 
         return res.status(200).json({
@@ -115,6 +129,7 @@ export const deleteRecipeCategoryById = async (req, res) => {
 };
 
 export const updateRecipeCategoryById = async (req, res) => {
+    let imagePath = null;
     try {
         const { id } = req.params;
         const { name, description } = req.body;
@@ -135,9 +150,8 @@ export const updateRecipeCategoryById = async (req, res) => {
 
         const currentCategory = await pool.query("SELECT image FROM recipe_category WHERE category_id = $1", [id]);
         let imageUrl = currentCategory.rows[0]?.image || null;
-        let imagePath = null;
 
-         if (req.files && req.files.recipeCategoryProfileImage && req.files.recipeCategoryProfileImage.length > 0) {
+        if (req.files && req.files.recipeCategoryProfileImage && req.files.recipeCategoryProfileImage.length > 0) {
             imagePath = req.files.recipeCategoryProfileImage[0].path;
             await deleteCloudinaryImageByUrl(imageUrl, 'recipe_category_images', deleteFromCloudinary);
             imageUrl = await uploadImageAndCleanup(imagePath, 'recipe_category_images', uploadToClodinary);

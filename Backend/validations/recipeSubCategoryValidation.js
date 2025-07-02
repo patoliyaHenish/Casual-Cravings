@@ -1,6 +1,9 @@
 import * as yup from 'yup';
 
 export const recipeSubCategoryValidationSchema = yup.object().shape({
+    categoryId: yup
+        .number()
+        .required('Category ID is required'),
     name: yup
         .string()
         .required('Sub-category name is required')
@@ -8,6 +11,12 @@ export const recipeSubCategoryValidationSchema = yup.object().shape({
         .max(100, 'Sub-category name must be at most 100 characters'),
     description: yup
         .string()
-        .nullable()
-        .max(500, 'Description must be at most 500 characters')
+        .required('Sub-category Description is required')
+        .min(10, 'Sub-category description must be at least 10 characters')
+});
+
+export const requireSubCategoryId = yup.object().shape({
+    subCategoryId: yup
+        .number()
+        .required('Sub-category ID is required')
 });

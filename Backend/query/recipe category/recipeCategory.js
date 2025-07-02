@@ -5,13 +5,17 @@ export const insertRecipeCategoryQuery = `
 `;
 
 export const checkRecipeCategoryExistsQuery = `
-    SELECT * FROM recipe_category WHERE name = $1;
+    SELECT * FROM recipe_category WHERE LOWER(name) = LOWER($1);
+`;
+
+export const checkRecipeCategoryExistsByIdQuery = `
+    SELECT * FROM recipe_category WHERE category_id = $1;
 `;
 
 export const getRecipeCategoriesQuery = `
     SELECT * FROM recipe_category
     WHERE ($1::text IS NULL OR LOWER(name) LIKE LOWER('%' || $1 || '%'))
-    ORDER BY name DESC
+    ORDER BY LEFT(LOWER(name), 1) ASC, name ASC
     LIMIT $2 OFFSET $3;
 `;
 

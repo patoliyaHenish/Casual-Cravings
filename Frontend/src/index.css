@@ -1,1 +1,22 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&display=swap');
+
+
+*, body, html {
+    font-family: "Roboto Condensed", sans-serif;
+  font-optical-sizing: auto;
+   font-style: normal;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 7px;
+  background: #fff7ed; 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #fdba74;
+  border-radius: 5px;
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #fdba74 #fff7ed;
+}
