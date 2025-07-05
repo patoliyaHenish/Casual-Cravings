@@ -2,12 +2,14 @@ import { pool } from "../config/db.js";
 import { handleServerError, handleValidationError, handleNotFoundError } from "../utils/erroHandler.js";
 import { checkRecipeTitleExistsQuery, insertRecipeQuery, selectRecipeByIdQuery, updateRecipeInstructionsQuery } from "../query/recipe/recipe.js";
 import { checkRecipeSubCategoryExistsQuery, checkSubCategoryExistsQuery } from "../query/sub category/subCategory.js";
-import { getYouTubeThumbnail } from "../utils/helper.js";
+import { getYouTubeThumbnail, safeDeleteLocalFile, uploadImageAndCleanup } from "../utils/helper.js";
 import { checkRecipeCategoryExistsByIdQuery } from "../query/recipe category/recipeCategory.js";
 import { insertRecipeInstructionQuery } from "../query/recipe instruction/recipeInstruction.js";
 import { checkIngredientsExistByIdsQuery } from "../query/ingredients/indegredients.js";
+import { uploadToClodinary } from "../utils/cloudinary.js";
 
 export const createRecipeByAdmin = async (req, res) => {
+    let imagePath = null;
     try {
         const {
             category_id,
@@ -22,6 +24,8 @@ export const createRecipeByAdmin = async (req, res) => {
             ingredients_id,
             recipe_instructions
         } = req.body;
+
+        console.log("Request body:", req.body);
 
         const user_id = req.user.userId;
 
@@ -41,7 +45,7 @@ export const createRecipeByAdmin = async (req, res) => {
             return handleValidationError(res, "All fields are required");
         }
 
-         if (typeof ingredients_id === "string") {
+        if (typeof ingredients_id === "string") {
             try {
                 parsed_ingredients_id = JSON.parse(ingredients_id);
             } catch {
@@ -56,7 +60,7 @@ export const createRecipeByAdmin = async (req, res) => {
             }
         }
 
-          const parsed_prep_time = Number(prep_time);
+        const parsed_prep_time = Number(prep_time);
         const parsed_cook_time = Number(cook_time);
         const parsed_serving_size = Number(serving_size);
 
@@ -72,9 +76,9 @@ export const createRecipeByAdmin = async (req, res) => {
             if (subCategoryResult.rowCount === 0) {
                 return handleNotFoundError(res, "Sub-category not found");
             }
-        } 
+        }
 
-          if (category_id && sub_category_id) {
+        if (category_id && sub_category_id) {
             const subCatResult = await pool.query(
                 checkSubCategoryExistsQuery,
                 [sub_category_id, category_id]
@@ -82,7 +86,7 @@ export const createRecipeByAdmin = async (req, res) => {
             if (subCatResult.rowCount === 0) {
                 return handleValidationError(res, "Selected sub-category does not exist under the specified category");
             }
-        } 
+        }
 
         if (video_url && !image_url) {
             const thumbnailUrl = getYouTubeThumbnail(video_url);
@@ -122,6 +126,11 @@ export const createRecipeByAdmin = async (req, res) => {
 
         if (!recipe_instructions.every(instr => typeof instr === "string" && instr.trim().length > 0)) {
             return handleValidationError(res, "Each recipe instruction must be a non-empty string");
+        }
+
+        if ( req.files.recipeImage && req.files.recipeImage.length > 0) {
+            imagePath = req.files.recipeImage[0].path;
+            final_image_url = await uploadImageAndCleanup(imagePath, 'recipe_images', uploadToClodinary);
         }
 
         const recipeResult = await pool.query(
@@ -177,6 +186,7 @@ export const createRecipeByAdmin = async (req, res) => {
         });
     } catch (error) {
         console.error("Error creating recipe:", error);
+        await safeDeleteLocalFile(imagePath);
         return handleServerError(res, error, "Failed to create recipe");
     }
 };
