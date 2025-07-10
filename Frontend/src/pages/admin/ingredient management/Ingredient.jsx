@@ -183,6 +183,7 @@ const Ingredient = () => {
         onClose={handleAddClose}
         onSubmit={handleAddSubmit}
         isLoading={isCreating}
+        form={{ name: '', description: '', uses: '', substitutes: '' }}
       />
 
       <ViewIngredientDialog
