@@ -21,6 +21,7 @@ const EditSubCategoryDialog = ({
   onImageChange,
   onSubmit,
 }) => {
+  if (!form) return null;
   
   const { data: categoriesData, isLoading: isCategoriesLoading } = useGetRecipeCategoriesQuery({ search: '', page: 1, limit: 100 });
   const categories = categoriesData?.data || [];
@@ -34,7 +35,12 @@ const EditSubCategoryDialog = ({
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={(event, reason) => {
+        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+          return;
+        }
+        onClose();
+      }}
       maxWidth="sm"
       fullWidth
       PaperProps={{
@@ -53,7 +59,7 @@ const EditSubCategoryDialog = ({
               <TextField
                 label="Name"
                 name="name"
-                value={form.name}
+                value={form.name ?? ''}
                 onChange={onFormChange}
                 fullWidth
                 required
@@ -65,7 +71,7 @@ const EditSubCategoryDialog = ({
               <TextField
                 label="Description"
                 name="description"
-                value={form.description}
+                value={form.description ?? ''}
                 onChange={onFormChange}
                 fullWidth
                 multiline
@@ -80,7 +86,7 @@ const EditSubCategoryDialog = ({
                 select
                 label="Category"
                 name="categoryId"
-                value={form.categoryId}
+                value={form.categoryId ?? ''}
                 onChange={onFormChange}
                 fullWidth
                 required
@@ -101,7 +107,7 @@ const EditSubCategoryDialog = ({
                 {isImageValid ? (
                   <div className="flex flex-col items-start gap-0">
                     <img
-                      src={form.imagePreview || (typeof form.image === 'string' ? form.image : undefined)}
+                      src={(form.imagePreview ?? (typeof form.image === 'string' ? form.image : undefined)) || ''}
                       alt="SubCategory"
                       className="h-20 w-20 object-cover rounded mb-4 border"
                     />

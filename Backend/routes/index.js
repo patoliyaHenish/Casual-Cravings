@@ -9,7 +9,6 @@ const router = express.Router();
 
 router.use('/auth', authRoutes);
 
-// admin sides management routes
 router.use('/manage-recipe-category', recipeCategoryRoutes);
 router.use('/manage-recipe-sub-category', recipeSubCategoryRoutes);
 router.use('/manage-recipe-ingredient', recipeIngredientRoutes);

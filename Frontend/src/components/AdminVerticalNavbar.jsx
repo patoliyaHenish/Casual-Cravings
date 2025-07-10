@@ -1,4 +1,4 @@
-import { Category, CategoryOutlined, ExpandMore, Group, Logout, Person, RestaurantMenu, Settings } from '@mui/icons-material';
+import { Category, CategoryOutlined, ExpandMore, FoodBank, Group, Logout, Person, RestaurantMenu, Settings } from '@mui/icons-material';
 import React, { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -17,6 +17,11 @@ const adminLinks = [
     label: 'Manage Ingredients',
     icon: <RestaurantMenu />,
     to: '/admin/manage-ingredients',
+  },
+  {
+    label: 'Manage Recipes',
+    icon: <FoodBank  />,
+    to: '/admin/manage-recipes',
   }
 ];
 

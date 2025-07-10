@@ -13,6 +13,7 @@ const EditCategoryDialog = ({
   onImageChange,
   onSubmit,
 }) => {
+  if (!form) return null;
   const isNameValid = !!form.name;
   const isDescriptionValid = !!form.description;
   const isImageValid = !!(form.imagePreview || form.image);
@@ -22,12 +23,12 @@ const EditCategoryDialog = ({
     <Dialog
       open={open}
       onClose={(event, reason) => {
-        if (reason === 'backdropClick') {
+        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
           setHighlight(true);
-        } else {
-          onClose();
-          setHighlight(false);
+          return;
         }
+        onClose();
+        setHighlight(false);
       }}
       maxWidth="sm"
       fullWidth
@@ -44,7 +45,7 @@ const EditCategoryDialog = ({
               <TextField
                 label="Name"
                 name="name"
-                value={form.name}
+                value={form.name ?? ''}
                 onChange={onFormChange}
                 fullWidth
                 required
@@ -55,7 +56,7 @@ const EditCategoryDialog = ({
               <TextField
                 label="Description"
                 name="description"
-                value={form.description}
+                value={form.description ?? ''}
                 onChange={onFormChange}
                 fullWidth
                 multiline
@@ -66,33 +67,33 @@ const EditCategoryDialog = ({
                 helperText={!isDescriptionValid ? "Description is required" : ""}
               />
               <div className="my-4">
-               {isImageValid ? (
-  <div className="flex flex-col items-start gap-0">
-    <img
-      src={form.imagePreview || form.image}
-      alt="Category"
-      className="h-20 w-20 object-cover rounded mb-4"
-    />
-  </div>
-) : (
-  <div className="text-red-500 mb-2">Image is required</div>
-)}
-<Button
-  variant="contained"
-  component="label"
-  color="primary"
-  size="small"
-  className="mt-2"
->
-  {isImageValid ? "Change Image" : "Upload Image"}
-  <input
-    type="file"
-    accept="image/*"
-    hidden
-    onChange={onImageChange}
-    required={!isImageValid}
-  />
-</Button>
+                {isImageValid ? (
+                  <div className="flex flex-col items-start gap-0">
+                    <img
+                      src={(form.imagePreview ?? form.image) || ''}
+                      alt="Category"
+                      className="h-20 w-20 object-cover rounded mb-4"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-red-500 mb-2">Image is required</div>
+                )}
+                <Button
+                  variant="contained"
+                  component="label"
+                  color="primary"
+                  size="small"
+                  className="mt-2"
+                >
+                  {isImageValid ? "Change Image" : "Upload Image"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={onImageChange}
+                    required={!isImageValid}
+                  />
+                </Button>
               </div>
             </>
           )}

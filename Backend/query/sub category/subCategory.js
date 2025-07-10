@@ -10,6 +10,10 @@ export const checkRecipeSubCategoryExistsQuery = `
 
 export const checkSubCategoryExistsQuery = `SELECT * FROM recipe_sub_category WHERE sub_category_id = $1 AND category_id = $2`;
 
+export const checkSubCategoriesExistForCategoryQuery = `
+    SELECT COUNT(*) as count FROM recipe_sub_category WHERE category_id = $1;
+`;
+
 export const updateRecipeSubCategoryQuery = `
     UPDATE recipe_sub_category
     SET name = $1, description = $2, image = $3, category_id = $4

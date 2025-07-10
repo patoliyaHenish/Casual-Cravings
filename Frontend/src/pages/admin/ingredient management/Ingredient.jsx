@@ -1,47 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import AddIngredientDialog from './AddIngredientDialog';
-import EditIngredientDialog from './EditIngredientDialog';
-import ViewIngredientDialog from './ViewIngredientDialog';
-import DeleteIngredientDialog from './DeleteIngredientDialog';
-import {
-  useGetAllIngredientsQuery,
-  useAddNewIngredientMutation,
-  useUpdateIngredientMutation,
-  useDeleteIngredientMutation,
-  useGetIngredientByIdMutation,
-} from '../../../features/api/ingredientApi';
-import {
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
-  TextField, Button, CircularProgress, IconButton
-} from '@mui/material';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import React, { useState } from 'react';
+import { useGetAllIngredientsQuery, useAddNewIngredientMutation, useUpdateIngredientMutation, useDeleteIngredientMutation, useGetIngredientByIdMutation } from '../../../features/api/ingredientApi';
+import { Button } from '@mui/material';
 import { toast } from 'sonner';
+import ViewIngredientDialog from './ViewIngredientDialog';
+import EditIngredientDialog from './EditIngredientDialog';
+import AddIngredientDialog from './AddIngredientDialog';
+import {
+  DataTable,
+  PageHeader,
+  SearchBar,
+  ActionButtons,
+  ConfirmDialog
+} from '../../../components/common';
 
 const Ingredient = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(10);
   const [deleteId, setDeleteId] = useState(null);
   const [editId, setEditId] = useState(null);
   const [viewId, setViewId] = useState(null);
-  const [viewData, setViewData] = useState(null);
-  const [isViewLoading, setIsViewLoading] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', description: '', uses: '', substitutes: '' });
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ name: '', description: '', uses: '', substitutes: '' });
 
-  const { data, isLoading } = useGetAllIngredientsQuery({ search, page, limit });
-  const [addNewIngredient, { isLoading: isAdding }] = useAddNewIngredientMutation();
+  const { data, isLoading, isError } = useGetAllIngredientsQuery({ search, page, limit });
+
+  const [addNewIngredient, { isLoading: isCreating }] = useAddNewIngredientMutation();
   const [updateIngredient, { isLoading: isUpdating }] = useUpdateIngredientMutation();
   const [deleteIngredient, { isLoading: isDeleting }] = useDeleteIngredientMutation();
-  const [getIngredientById] = useGetIngredientByIdMutation();
+  const [getIngredientById, { data: viewIngredientData, isLoading: isViewLoading }] = useGetIngredientByIdMutation();
+  const [getEditIngredientById, { data: editIngredientData, isLoading: isEditLoading }] = useGetIngredientByIdMutation();
 
   const ingredients = data?.data || [];
   const pagination = data?.pagination || { total: 0, page: 1, totalPages: 1 };
+  const isAnyDialogOpen = !!(deleteId || editId || viewId || addOpen);
 
-  // Handlers
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
     setPage(1);
@@ -55,65 +47,9 @@ const Ingredient = () => {
     if (page < pagination.totalPages) setPage(page + 1);
   };
 
-  // Add Ingredient
-  const handleAddOpen = () => setAddOpen(true);
-  const handleAddClose = () => {
-    setAddOpen(false);
-    setAddForm({ name: '', description: '', uses: '', substitutes: '' });
-  };
-  const handleAddFormChange = (e) => {
-    setAddForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-  const handleAddSubmit = async (values, { resetForm }) => {
-  try {
-    await addNewIngredient(values).unwrap();
-    toast.success('Ingredient added successfully');
-    handleAddClose();
-    resetForm();
-  } catch (error) {
-    toast.error(error?.data?.message || 'Failed to add ingredient');
-  }
-};
-
-  const handleEditOpen = (id) => setEditId(id);
-  const handleEditClose = () => {
-    setEditId(null);
-    setEditForm({ name: '', description: '', uses: '', substitutes: '' });
-  };
-  const handleEditFormChange = (e) => {
-    setEditForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-  const handleEditSubmit = async (values, { resetForm }) => {
-  try {
-    await updateIngredient({ ingredientId: editId, ...values }).unwrap();
-    toast.success('Ingredient updated successfully');
-    handleEditClose();
-    resetForm();
-  } catch (error) {
-    toast.error(error?.data?.message || 'Failed to update ingredient');
-  }
-};
-
-  const handleViewOpen = async (id) => {
-    setViewId(id);
-    setIsViewLoading(true);
-    try {
-      const result = await getIngredientById({ ingredientId: id }).unwrap();
-      setViewData(result.data);
-    } catch {
-      setViewData(null);
-    }
-    setIsViewLoading(false);
-  };
-  const handleViewClose = () => {
-    setViewId(null);
-    setViewData(null);
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
   };
 
   const handleDelete = async () => {
@@ -129,176 +65,153 @@ const Ingredient = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchEditData = async () => {
-      if (editId) {
-        try {
-          const result = await getIngredientById({ ingredientId: editId }).unwrap();
-          const ing = result.data;
-          setEditForm({
-            name: ing.name || '',
-            description: ing.description || '',
-            uses: ing.uses || '',
-            substitutes: ing.substitutes || '',
-          });
-        } catch {
-          setEditForm({ name: '', description: '', uses: '', substitutes: '' });
-          toast.error('Failed to load ingredient');
-        }
-      }
-    };
-    fetchEditData();
-  }, [editId]);
+  const handleEditOpen = async (id) => {
+    setEditId(id);
+    await getEditIngredientById({ ingredientId: id });
+  };
+  const handleEditClose = () => setEditId(null);
+
+  const handleViewOpen = async (id) => {
+    setViewId(id);
+    await getIngredientById({ ingredientId: id });
+  };
+  const handleViewClose = () => setViewId(null);
+
+  const handleAddOpen = () => setAddOpen(true);
+  const handleAddClose = () => setAddOpen(false);
+
+  const handleAddSubmit = async (values, { resetForm }) => {
+    const formData = new FormData();
+    formData.append('name', values.name);
+    formData.append('description', values.description);
+    if (values.image) {
+      formData.append('ingredientProfileImage', values.image);
+    }
+    try {
+      await addNewIngredient(formData).unwrap();
+      toast.success('Ingredient added successfully');
+      setAddOpen(false);
+      resetForm();
+    } catch (error) {
+      toast.error(error?.data?.message || 'Failed to add ingredient');
+    }
+  };
+
+  const handleEditSubmit = async (values) => {
+    const formData = new FormData();
+    formData.append('ingredientId', editId);  
+    formData.append('name', values.name);
+    formData.append('description', values.description);
+    formData.append('uses', values.uses);
+    formData.append('substitutes', values.substitutes);
+    if (values.image) {
+      formData.append('ingredientProfileImage', values.image);
+    }
+    try {
+      await updateIngredient(formData).unwrap();
+      toast.success('Ingredient updated successfully');
+      handleEditClose();
+    } catch (error) {
+      toast.error(error?.data?.message || 'Failed to update ingredient');
+    }
+  };
+
+  const columns = [
+    { 
+      header: '#', 
+      field: 'id', 
+      headerStyle: { width: 60 },
+      render: (row, rowIndex) => ((page - 1) * limit + rowIndex + 1)
+    },
+    { header: 'Name', field: 'name' },
+    { header: 'Description', field: 'description' },
+    {
+      header: 'Actions',
+      field: 'actions',
+      render: (row) => (
+        <ActionButtons
+          onView={() => handleViewOpen(row.ingredient_id)}
+          onEdit={() => handleEditOpen(row.ingredient_id)}
+          onDelete={() => setDeleteId(row.ingredient_id)}
+        />
+      )
+    }
+  ];
+
+  if (isError) {
+    return (
+      <div className="text-red-500 text-center mt-10">
+        Failed to load ingredients.
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 mt-16">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-4">
-        <h2 className="text-2xl font-bold text-center sm:text-left w-full sm:w-auto">
-          Manage Ingredients
-        </h2>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <TextField
-            label="Search ingredients"
-            variant="outlined"
-            size="small"
-            value={search}
-            onChange={handleSearchChange}
-            className="bg-white rounded w-full sm:w-auto"
-            sx={{ minWidth: { xs: '100%', sm: 220 } }}
-          />
-          <Button
-            variant="contained"
-            color="warning"
-            onClick={handleAddOpen}
-            className="w-full sm:w-auto"
-            sx={{ mt: { xs: 1, sm: 0 } }}
-          >
-            Add Ingredient
-          </Button>
-        </div>
-      </div>
-      <TableContainer
-        component={Paper}
-        className="shadow rounded mb-4 max-h-[500px] overflow-auto custom-scrollbar"
-      >
-        <Table>
-          <TableHead stickyHeader>
-            <TableRow className="bg-orange-100">
-              <TableCell className="!font-bold">#</TableCell>
-              <TableCell className="!font-bold">Name</TableCell>
-              <TableCell className="!font-bold">Description</TableCell>
-              <TableCell className="!font-bold">Uses</TableCell>
-              <TableCell className="!font-bold">Substitutes</TableCell>
-              <TableCell className="!font-bold">Action</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center">
-                  <CircularProgress color="warning" />
-                </TableCell>
-              </TableRow>
-            ) : ingredients.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" className="py-4 text-gray-500">
-                  No ingredients found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              ingredients.map((ing, idx) => (
-                <TableRow key={ing.ingredient_id || idx} className="hover:bg-orange-50">
-                  <TableCell>{(pagination.page - 1) * limit + idx + 1}</TableCell>
-                  <TableCell>{ing.name}</TableCell>
-                  <TableCell>{ing.description}</TableCell>
-                  <TableCell>{ing.uses}</TableCell>
-                  <TableCell>{ing.substitutes}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col items-center gap-1">
-                      <IconButton
-                        color="warning"
-                        onClick={() => handleViewOpen(ing.ingredient_id)}
-                        aria-label="View"
-                        size="small"
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                      <IconButton
-                        color="primary"
-                        onClick={() => handleEditOpen(ing.ingredient_id)}
-                        aria-label="Edit"
-                        size="small"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        color="error"
-                        onClick={() => setDeleteId(ing.ingredient_id)}
-                        aria-label="Delete"
-                        size="small"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <div className="flex items-center justify-between mt-4">
+    <div className={`p-6 mt-16 transition-all duration-200 ${isAnyDialogOpen ? 'blur-sm pointer-events-none select-none' : ''}`}>
+      <PageHeader title="Manage Ingredients">
+        <SearchBar
+          value={search}
+          onChange={handleSearchChange}
+          placeholder="Search ingredients..."
+          label="Search ingredients"
+        />
         <Button
           variant="contained"
           color="warning"
-          onClick={handlePrevPage}
-          disabled={page === 1}
+          onClick={handleAddOpen}
+          className="w-full sm:w-auto"
+          sx={{ mt: { xs: 1, sm: 0 } }}
         >
-          Previous
+          Add Ingredient
         </Button>
-        <span>
-          Page {pagination.page} of {pagination.totalPages}
-        </span>
-        <Button
-          variant="contained"
-          color="warning"
-          onClick={handleNextPage}
-          disabled={page === pagination.totalPages}
-        >
-          Next
-        </Button>
-      </div>
+      </PageHeader>
+
+      <DataTable
+        data={ingredients}
+        columns={columns}
+        isLoading={isLoading}
+        pagination={pagination}
+        limit={limit}
+        onLimitChange={handleLimitChange}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
+        emptyMessage="No ingredients found."
+      />
 
       <AddIngredientDialog
         open={addOpen}
         onClose={handleAddClose}
-        form={addForm}
-        onFormChange={handleAddFormChange}
         onSubmit={handleAddSubmit}
-        isLoading={isAdding}
-      />
-
-      <EditIngredientDialog
-        open={!!editId}
-        onClose={handleEditClose}
-        form={editForm}
-        onFormChange={handleEditFormChange}
-        onSubmit={handleEditSubmit}
-        isLoading={isUpdating}
+        isLoading={isCreating}
       />
 
       <ViewIngredientDialog
         open={!!viewId}
         onClose={handleViewClose}
         isLoading={isViewLoading}
-        data={viewData}
+        data={viewIngredientData?.data}
       />
 
-      <DeleteIngredientDialog
+      <EditIngredientDialog
+        open={!!editId}
+        onClose={handleEditClose}
+        onSubmit={handleEditSubmit}
+        isLoading={isUpdating || isEditLoading}
+        ingredientId={editId}
+        form={editIngredientData?.data || { name: '', description: '', uses: '', substitutes: '' }}
+      />
+
+      <ConfirmDialog
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
-        onDelete={handleDelete}
+        onConfirm={handleDelete}
+        title="Delete Ingredient"
+        message="Are you sure you want to delete this ingredient? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
         isLoading={isDeleting}
+        loadingText="Deleting..."
+        severity="error"
       />
     </div>
   );

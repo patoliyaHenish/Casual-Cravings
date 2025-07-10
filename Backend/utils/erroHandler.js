@@ -1,7 +1,8 @@
-export const handleValidationError = (res, message = "Validation error", statusCode = 400) => {
+export const handleValidationError = (res, message = "Validation error", statusCode = 400, errors = []) => {
     return res.status(statusCode).json({
         success: false,
         message,
+        errors,
     });
 };
 

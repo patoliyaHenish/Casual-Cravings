@@ -13,10 +13,10 @@ const ViewCategoryDialog = ({
     open={open}
     onClose={(event, reason) => {
       if (reason === 'backdropClick') {
-        setHighlight(true);
+        setHighlight && setHighlight(true);
       } else {
         onClose();
-        setHighlight(false);
+        setHighlight && setHighlight(false);
       }
     }}
     maxWidth="sm"
@@ -53,7 +53,7 @@ const ViewCategoryDialog = ({
       <Button
         onClick={() => {
           onClose();
-          setHighlight(false);
+          setHighlight && setHighlight(false);
         }}
         color="warning"
         variant="contained"

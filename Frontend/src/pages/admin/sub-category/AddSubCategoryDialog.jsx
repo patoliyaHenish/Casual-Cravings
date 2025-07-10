@@ -89,7 +89,17 @@ const AddSubCategoryDialog = ({
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <Dialog 
+            open={open} 
+            onClose={(event, reason) => {
+                if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+                    return;
+                }
+                onClose();
+            }}
+            maxWidth="sm" 
+            fullWidth
+        >
             <DialogTitle>Add Recipe Sub-Category</DialogTitle>
             <form onSubmit={formik.handleSubmit} encType="multipart/form-data">
                 <DialogContent dividers>

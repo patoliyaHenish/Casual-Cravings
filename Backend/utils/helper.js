@@ -2,15 +2,23 @@ import nodemailer from 'nodemailer';
 import { handleValidationError } from './erroHandler.js';
 
 export const validate = (schema) => async (req, res, next) => {
+    if (req.body) {
+        ['ingredients_id', 'ingredient_unit', 'ingredient_quantity', 'recipe_instructions'].forEach((field) => {
+            if (req.body[field] !== undefined && typeof req.body[field] === 'string') {
+                try {
+                    req.body[field] = JSON.parse(req.body[field]);
+                } catch (error) {
+                    console.error(`Error parsing ${field}:`, error);
+                    return handleValidationError(res, `Invalid format for ${field}. Expected an array.`);
+                }
+            }
+        });
+    }
     try {
         await schema.validate(req.body, { abortEarly: false});
         next();
     } catch (err) {
-        return res.status(400).json({
-            success: false,
-            message: 'Validation error',
-            errors: err.errors,
-        });
+        return handleValidationError(res, 'Validation error', 400, err.errors);
     }
 };
 

@@ -1,33 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { useGetRecipeCategoriesQuery, useGetRecipeCategoryByIdQuery, useDeleteRecipeCategoryByIdMutation, useUpdateRecipeCategoryByIdMutation, useCreateRecipeCategoryMutation } from '../../../features/api/categoryApi';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField, Button, CircularProgress, IconButton } from '@mui/material';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import { Button } from '@mui/material';
 import { toast } from 'sonner';
 import ViewCategoryDialog from './ViewCategoryDialog';
 import EditCategoryDialog from './EditCategoryDialog';
-import DeleteCategoryDialog from './DeleteCategoryDialog';
 import AddCategoryDialog from './AddCategoryDialog';
+import {
+  DataTable,
+  PageHeader,
+  SearchBar,
+  ActionButtons,
+  ConfirmDialog
+} from '../../../components/common';
+import { CircularProgress } from '@mui/material';
 
 const RecipeCategory = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(10);
   const [viewId, setViewId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', description: '' });
-  const [viewCancelHighlight, setViewCancelHighlight] = useState(false);
-  const [editCancelHighlight, setEditCancelHighlight] = useState(false);
-  const [deleteCancelHighlight, setDeleteCancelHighlight] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ name: '', description: '', image: null, imagePreview: null });
-  const [addHighlight, setAddHighlight] = useState(false);
 
   const { data, isLoading, isError } = useGetRecipeCategoriesQuery({ search, page, limit });
-  const { data: viewData, isLoading: isViewLoading } = useGetRecipeCategoryByIdQuery(viewId, { skip: !viewId });
-  const { data: editData, isLoading: isEditLoading } = useGetRecipeCategoryByIdQuery(editId, { skip: !editId });
+  const { data: editData } = useGetRecipeCategoryByIdQuery(editId, { skip: !editId });
   const [deleteRecipeCategoryById, { isLoading: isDeleting }] = useDeleteRecipeCategoryByIdMutation();
   const [updateRecipeCategoryById, { isLoading: isUpdating }] = useUpdateRecipeCategoryByIdMutation();
   const [createRecipeCategory, { isLoading: isAdding }] = useCreateRecipeCategoryMutation();
@@ -53,7 +51,7 @@ const RecipeCategory = () => {
 
   const categories = data?.data || [];
   const pagination = data?.pagination || { total: 0, page: 1, totalPages: 1 };
-  const isAnyDialogOpen = !!(viewId || editId || deleteId || addOpen);
+  const isAnyDialogOpen = !!(viewId || editId || deleteId);
 
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
@@ -66,6 +64,11 @@ const RecipeCategory = () => {
 
   const handleNextPage = () => {
     if (page < pagination.totalPages) setPage(page + 1);
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
   };
 
   const handleDelete = async () => {
@@ -93,25 +96,6 @@ const RecipeCategory = () => {
   const handleEditClose = () => {
     setEditId(null);
     setEditForm({ name: '', description: '' });
-  };
-
-  const handleEditChange = (e) => {
-    setEditForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handleEditImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setEditForm((prev) => ({
-        ...prev,
-        image: file,
-        imagePreview: URL.createObjectURL(file),
-        removeImage: false,
-      }));
-    }
   };
 
   const handleEditSubmit = async (e) => {
@@ -144,28 +128,11 @@ const RecipeCategory = () => {
   };
 
 
-  const handleAddOpen = () => setAddOpen(true);
+  const handleAddOpen = () => {
+    setAddOpen(true);
+  };
   const handleAddClose = () => {
     setAddOpen(false);
-    setAddForm({ name: '', description: '', image: null, imagePreview: null });
-  };
-
-  const handleAddFormChange = (e) => {
-    setAddForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handleAddImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setAddForm((prev) => ({
-        ...prev,
-        image: file,
-        imagePreview: URL.createObjectURL(file),
-      }));
-    }
   };
 
   const handleAddSubmit = async (values) => {
@@ -194,165 +161,97 @@ const RecipeCategory = () => {
   };
 
 
+  const columns = [
+    { header: '#', field: 'id', headerStyle: { width: 60 } },
+    { header: 'Name', field: 'name' },
+    { header: 'Description', field: 'description' },
+    { 
+      header: 'Image', 
+      field: 'image',
+      render: (row) => (
+        row.image ? (
+          <img src={row.image} alt={row.name} className="h-12 w-12 object-cover rounded" />
+        ) : (
+          <span className="text-gray-400">No Image</span>
+        )
+      )
+    },
+    {
+      header: 'Actions',
+      field: 'actions',
+      render: (row) => (
+        <ActionButtons
+          onView={() => setViewId(row.category_id)}
+          onEdit={() => handleEditOpen(row.category_id)}
+          onDelete={() => setDeleteId(row.category_id)}
+        />
+      )
+    }
+  ];
+
   return (
    <div className={`p-6 mt-16 transition-all duration-200 ${isAnyDialogOpen ? 'blur-sm pointer-events-none select-none' : ''}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-4">
-        <h2 className="text-2xl font-bold text-center sm:text-left w-full sm:w-auto">
-          Manage Recipe Categories
-        </h2>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <TextField
-            label="Search categories"
-            variant="outlined"
-            size="small"
-            value={search}
-            onChange={handleSearchChange}
-            className="bg-white rounded w-full sm:w-auto"
-            sx={{ minWidth: { xs: '100%', sm: 220 } }}
-          />
-          <Button
-            variant="contained"
-            color="warning"
-            onClick={handleAddOpen}
-            className="w-full sm:w-auto"
-            sx={{ mt: { xs: 1, sm: 0 } }}
-          >
-            Add Category
-          </Button>
-        </div>
-      </div>
-      <TableContainer
-        component={Paper}
-        className="shadow rounded mb-4 max-h-[500px] overflow-auto custom-scrollbar"
-      >
-        <Table>
-          <TableHead stickyHeader>
-            <TableRow className="bg-orange-100">
-              <TableCell className="!font-bold">#</TableCell>
-              <TableCell className="!font-bold">Name</TableCell>
-              <TableCell className="!font-bold">Description</TableCell>
-              <TableCell className="!font-bold">Image</TableCell>
-              <TableCell className="!font-bold">Action</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {categories.map((cat, idx) => (
-              <TableRow key={cat.category_id || idx} className="hover:bg-orange-50">
-                <TableCell>{(pagination.page - 1) * limit + idx + 1}</TableCell>
-                <TableCell>{cat.name}</TableCell>
-                <TableCell>{cat.description}</TableCell>
-                <TableCell>
-                  {cat.image ? (
-                    <img src={cat.image} alt={cat.name} className="h-12 w-12 object-cover rounded" />
-                  ) : (
-                    <span className="text-gray-400">No Image</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col items-center gap-1">
-                    <IconButton
-                      color="warning"
-                      onClick={() => setViewId(cat.category_id)}
-                      aria-label="View"
-                      size="small"
-                    >
-                      <VisibilityIcon />
-                    </IconButton>
-                    <IconButton
-                      color="primary"
-                      onClick={() => handleEditOpen(cat.category_id)}
-                      aria-label="Edit"
-                      size="small"
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => setDeleteId(cat.category_id)}
-                      aria-label="Delete"
-                      size="small"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {categories.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} align="center" className="py-4 text-gray-500">
-                  No categories found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <div className="flex items-center justify-between mt-4">
+      <PageHeader title="Manage Recipe Categories">
+        <SearchBar
+          value={search}
+          onChange={handleSearchChange}
+          placeholder="Search categories..."
+          label="Search categories"
+        />
         <Button
           variant="contained"
           color="warning"
-          onClick={handlePrevPage}
-          disabled={page === 1}
-          className="disabled:bg-gray-300"
+          onClick={handleAddOpen}
+          className="w-full sm:w-auto"
+          sx={{ mt: { xs: 1, sm: 0 } }}
         >
-          Previous
+          Add Category
         </Button>
-        <span>
-          Page {pagination.page} of {pagination.totalPages}
-        </span>
-        <Button
-          variant="contained"
-          color="warning"
-          onClick={handleNextPage}
-          disabled={page === pagination.totalPages}
-          className="disabled:bg-gray-300"
-        >
-          Next
-        </Button>
-      </div>
-
-      <ViewCategoryDialog
-        open={!!viewId}
-        onClose={() => setViewId(null)}
-        highlight={viewCancelHighlight}
-        setHighlight={setViewCancelHighlight}
-        isLoading={isViewLoading}
-        data={viewData?.data}
-      />
-
-      <EditCategoryDialog
-        open={!!editId}
-        onClose={handleEditClose}
-        highlight={editCancelHighlight}
-        setHighlight={setEditCancelHighlight}
-        isLoading={isEditLoading}
-        isUpdating={isUpdating}
-        form={editForm}
-        onFormChange={handleEditChange}
-        onImageChange={handleEditImageChange}
-        onSubmit={handleEditSubmit}
-      />
-
-      <DeleteCategoryDialog
-        open={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        highlight={deleteCancelHighlight}
-        setHighlight={setDeleteCancelHighlight}
-        onDelete={handleDelete}
-        isDeleting={isDeleting}
+      </PageHeader>
+      <DataTable
+        data={categories}
+        columns={columns}
+        isLoading={isLoading}
+        pagination={pagination}
+        limit={limit}
+        onLimitChange={handleLimitChange}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
+        emptyMessage="No categories found."
       />
 
       <AddCategoryDialog
         open={addOpen}
         onClose={handleAddClose}
-        form={addForm}
-        onFormChange={handleAddFormChange}
-        onImageChange={handleAddImageChange}
         onSubmit={handleAddSubmit}
         isLoading={isAdding}
-        highlight={addHighlight}
-        setHighlight={setAddHighlight}
+      />
+
+      <ViewCategoryDialog
+        open={!!viewId}
+        onClose={() => setViewId(null)}
+        categoryId={viewId}
+      />
+
+      <EditCategoryDialog
+        open={!!editId}
+        onClose={handleEditClose}
+        onSubmit={handleEditSubmit}
+        isLoading={isUpdating}
+        categoryId={editId}
+      />
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Delete Category"
+        message="Are you sure you want to delete this category? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={isDeleting}
+        loadingText="Deleting..."
+        severity="error"
       />
     </div>
   );

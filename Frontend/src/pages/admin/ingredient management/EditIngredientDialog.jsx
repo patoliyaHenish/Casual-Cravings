@@ -11,7 +11,17 @@ const EditIngredientSchema = Yup.object().shape({
 });
 
 const EditIngredientDialog = ({ open, onClose, form, onFormChange, onSubmit, isLoading }) => (
-  <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+  <Dialog 
+    open={open} 
+    onClose={(event, reason) => {
+      if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+        return;
+      }
+      onClose();
+    }}
+    maxWidth="sm" 
+    fullWidth
+  >
     <DialogTitle>Edit Ingredient</DialogTitle>
     <Formik
       initialValues={form}

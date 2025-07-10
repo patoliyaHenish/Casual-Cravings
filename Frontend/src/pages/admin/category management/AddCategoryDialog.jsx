@@ -76,12 +76,12 @@ const AddCategoryDialog = ({
     <Dialog
       open={open}
       onClose={(event, reason) => {
-        if (reason === 'backdropClick') {
+        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
           setHighlight(true);
-        } else {
-          onClose();
-          setHighlight(false);
+          return;
         }
+        onClose();
+        setHighlight(false);
       }}
       maxWidth="sm"
       fullWidth

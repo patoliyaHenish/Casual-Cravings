@@ -12,6 +12,8 @@ export const createRecipeTable = `
         cook_time INT NOT NULL,
         serving_size INT NOT NULL,
         ingredients_id INTEGER[] DEFAULT '{}',
+        ingredient_unit TEXT[] DEFAULT '{}',
+        ingredient_quantity TEXT[] DEFAULT '{}',
         recipe_instructions TEXT[] DEFAULT '{}',
         added_by_user BOOLEAN DEFAULT FALSE,
         added_by_admin BOOLEAN DEFAULT FALSE,

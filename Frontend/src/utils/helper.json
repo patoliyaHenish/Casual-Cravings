@@ -1,0 +1,21 @@
+{
+  "ingredientUnits": [
+    "g",
+    "kg",
+    "mg",
+    "lb",
+    "oz",
+    "ml",
+    "l",
+    "cup",
+    "tbsp",
+    "tsp",
+    "piece",
+    "slice",
+    "pinch",
+    "clove",
+    "can",
+    "stick",
+    "packet"
+  ]
+}

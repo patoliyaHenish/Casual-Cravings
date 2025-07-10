@@ -5,12 +5,14 @@ import { authApi } from "../features/api/authApi";
 import { categoryApi } from "../features/api/categoryApi";
 import { subCategoryApi } from "../features/api/subCategoryApi";
 import { ingredientApi } from "../features/api/ingredientApi";
+import { recipeApi } from "../features/api/recipeApi";
 
 const rootReducer = combineReducers({
     [authApi.reducerPath]:authApi.reducer,
     [categoryApi.reducerPath]: categoryApi.reducer,
     [subCategoryApi.reducerPath]: subCategoryApi.reducer,
     [ingredientApi.reducerPath]: ingredientApi.reducer,
+    [recipeApi.reducerPath]: recipeApi.reducer,
     auth: authReducer,
     loading: loadingReducer,
 })
