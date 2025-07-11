@@ -32,19 +32,17 @@ const MainLayout = () => {
         {user?.role === 'admin' && (
           <>
             <button
-              className="md:hidden fixed z-[999] bg-[#FFF3E0] rounded-full shadow p-2"
-              style={{
-                top: '4rem',
-                left: adminNavOpen ? '17rem' : '1rem'
-              }}
+              className={`md:hidden fixed z-[999] bg-[#FFF3E0] rounded-full shadow p-2 transition-all duration-300 ${
+                adminNavOpen ? 'top-16 left-68' : 'top-16 left-4'
+              }`}
               aria-label="Toggle Admin Menu"
               onClick={() => setAdminNavOpen(prev => !prev)}
               type="button"
             >
               {adminNavOpen ? (
-                <CloseRounded style={{ color: '#E06B00', fontSize: 28 }} />
+                <CloseRounded className="text-[#E06B00] text-7xl" />
               ) : (
-                <MenuOpenRounded style={{ color: '#E06B00', fontSize: 28 }} />
+                <MenuOpenRounded className="text-[#E06B00] text-7xl" />
               )}
             </button>
             <AdminVerticalNavbar open={adminNavOpen} setOpen={setAdminNavOpen} />

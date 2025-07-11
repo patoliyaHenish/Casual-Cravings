@@ -16,36 +16,11 @@ export const createRecipeValidation = yup.object().shape({
   prep_time: yup.number().required('Prep time is required'),
   cook_time: yup.number().required('Cook time is required'),
   serving_size: yup.number().required('Serving size is required'),
-  ingredients_id: yup.array()
-    .of(yup.number().required('Ingredient ID is required'))
-    .min(1, 'At least one ingredient is required')
-    .required('Ingredients are required'),
-  ingredient_unit: yup.array()
-    .of(yup.string().required('Unit is required'))
-    .min(1, 'At least one unit is required')
-    .required('Ingredient units are required'),
-  ingredient_quantity: yup.array()
-    .of(yup.string().required('Quantity is required'))
-    .min(1, 'At least one quantity is required')
-    .required('Ingredient quantities are required'),
   recipe_instructions: yup
     .array()
     .of(yup.string().trim().min(1, 'Instruction cannot be empty').required())
     .required('Instructions are required')
     .min(1, 'At least one instruction is required'),
-}).test('ingredients-arrays-length', 'Ingredients, units, and quantities must have the same length', function(value) {
-  const { ingredients_id, ingredient_unit, ingredient_quantity } = value;
-  
-  if (!ingredients_id || !ingredient_unit || !ingredient_quantity) {
-    return true;
-  }
-  
-  const lengths = [ingredients_id.length, ingredient_unit.length, ingredient_quantity.length];
-  const allSameLength = lengths.every(length => length === lengths[0]);
-  
-  return allSameLength || this.createError({
-    message: 'Ingredients, units, and quantities must have the same length'
-  });
 });
 
 export const updateRecipeValidation = yup.object().shape({
@@ -64,18 +39,5 @@ export const updateRecipeValidation = yup.object().shape({
   prep_time: yup.number().notRequired(),
   cook_time: yup.number().notRequired(),
   serving_size: yup.number().notRequired(),
-  ingredients_id: yup.array().of(yup.number()).notRequired(),
-  ingredient_unit: yup.array().of(yup.string()).notRequired(),
-  ingredient_quantity: yup.array().of(yup.string()).notRequired(),
   recipe_instructions: yup.array().of(yup.string().trim().min(1)).notRequired(),
-}).test('ingredients-arrays-length', 'Ingredients, units, and quantities must have the same length', function(value) {
-  const { ingredients_id, ingredient_unit, ingredient_quantity } = value;
-  if (!ingredients_id || !ingredient_unit || !ingredient_quantity) {
-    return true;
-  }
-  const lengths = [ingredients_id.length, ingredient_unit.length, ingredient_quantity.length];
-  const allSameLength = lengths.every(length => length === lengths[0]);
-  return allSameLength || this.createError({
-    message: 'Ingredients, units, and quantities must have the same length'
-  });
 });

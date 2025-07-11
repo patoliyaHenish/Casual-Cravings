@@ -3,7 +3,7 @@ import { handleValidationError } from './erroHandler.js';
 
 export const validate = (schema) => async (req, res, next) => {
     if (req.body) {
-        ['ingredients_id', 'ingredient_unit', 'ingredient_quantity', 'recipe_instructions'].forEach((field) => {
+        ['recipe_instructions'].forEach((field) => {
             if (req.body[field] !== undefined && typeof req.body[field] === 'string') {
                 try {
                     req.body[field] = JSON.parse(req.body[field]);

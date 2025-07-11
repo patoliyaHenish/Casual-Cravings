@@ -14,7 +14,7 @@ const ViewSubCategoryDialog = ({ open, onClose, isLoading, data }) => {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm">
       <DialogTitle>Sub-Category Details</DialogTitle>
-      <DialogContent dividers className="custom-scrollbar" style={{ maxHeight: 500 }}>
+              <DialogContent dividers className="custom-scrollbar max-h-[500px]">
         {isLoading ? (
           <Box display="flex" justifyContent="center" alignItems="center" minHeight={120}>
             <CircularProgress color="warning" />
@@ -51,7 +51,7 @@ const ViewSubCategoryDialog = ({ open, onClose, isLoading, data }) => {
                 <img
                   src={data.image}
                   alt={data.name}
-                  style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, marginTop: 8 }}
+                  className="w-30 h-30 object-cover rounded-lg mt-2"
                 />
               ) : (
                 <Typography color="textSecondary">No Image</Typography>

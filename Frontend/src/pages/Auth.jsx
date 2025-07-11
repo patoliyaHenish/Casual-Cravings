@@ -129,8 +129,7 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center px-2 sm:px-4">
       <Paper
         elevation={6}
-        className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg p-4 sm:p-8 md:p-10"
-        style={{ borderRadius: 18 }}
+        className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg p-4 sm:p-8 md:p-10 rounded-[18px]"
       >
         {!showOtp && (
           <Tabs

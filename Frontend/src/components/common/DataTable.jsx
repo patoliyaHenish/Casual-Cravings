@@ -24,7 +24,6 @@ const DataTable = ({
   onPrevPage,
   onNextPage,
   emptyMessage = "No data found.",
-  loadingMessage = "Loading...",
   maxHeight = 500,
 }) => {
   return (
@@ -82,7 +81,7 @@ const DataTable = ({
         </Table>
       </TableContainer>
       
-      <div className="flex items-center justify-between mt-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4">
         <div className="flex items-center gap-2">
           <span>Show:</span>
           <FormControl size="small" sx={{ minWidth: 80 }}>
@@ -100,7 +99,7 @@ const DataTable = ({
           </FormControl>
           <span>entries</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 self-center justify-center sm:self-auto sm:justify-start">
           <Button
             variant="contained"
             color="warning"

@@ -41,7 +41,7 @@ const ResetPassword = () => {
 
   return (
     <Box className="min-h-screen flex items-center justify-center px-2 sm:px-4">
-      <Paper elevation={6} className="w-full max-w-md p-8" style={{ borderRadius: 18 }}>
+      <Paper elevation={6} className="w-full max-w-md p-8 rounded-[18px]">
         <h2 className="text-2xl font-bold mb-4 text-center">Reset Password</h2>
         <Formik
           initialValues={{ newPassword: '', confirmPassword: '' }}

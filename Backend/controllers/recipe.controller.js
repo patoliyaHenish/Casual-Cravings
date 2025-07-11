@@ -5,7 +5,6 @@ import { checkRecipeSubCategoryExistsQuery, checkSubCategoryExistsQuery, checkSu
 import { getYouTubeThumbnail, safeDeleteLocalFile, uploadImageAndCleanup } from "../utils/helper.js";
 import { checkRecipeCategoryExistsByIdQuery } from "../query/recipe category/recipeCategory.js";
 import { insertRecipeInstructionQuery, getRecipeInstructionsByRecipeIdQuery } from "../query/recipe instruction/recipeInstruction.js";
-import { checkIngredientsExistByIdsQuery } from "../query/ingredients/indegredients.js";
 import { uploadToClodinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 
 export const createRecipeByAdmin = async (req, res) => {
@@ -21,78 +20,20 @@ export const createRecipeByAdmin = async (req, res) => {
             prep_time,
             cook_time,
             serving_size,
-            ingredients_id,
-            ingredient_unit,
-            ingredient_quantity,
             recipe_instructions
         } = req.body;
 
         const user_id = req.user.userId;
 
         let final_image_url = image_url || null;
-        let parsed_ingredients_id = ingredients_id;
-        let parsed_ingredient_unit = ingredient_unit;
-        let parsed_ingredient_quantity = ingredient_quantity;
         let parsed_recipe_instructions = recipe_instructions;
 
         try {
-            if (typeof ingredients_id === "string") {
-                parsed_ingredients_id = JSON.parse(ingredients_id);
-            }
-
-            if (typeof ingredient_unit === "string") {
-                parsed_ingredient_unit = JSON.parse(ingredient_unit);
-            }
-
-            if (typeof ingredient_quantity === "string") {
-                parsed_ingredient_quantity = JSON.parse(ingredient_quantity);
-            }
-
             if (typeof recipe_instructions === "string") {
                 parsed_recipe_instructions = JSON.parse(recipe_instructions);
             }
-
-            if (!Array.isArray(parsed_ingredients_id) || parsed_ingredients_id.length === 0) {
-                return handleValidationError(res, "Ingredients must be a non-empty array");
-            }
-
-            if (!Array.isArray(parsed_ingredient_unit) || parsed_ingredient_unit.length === 0) {
-                return handleValidationError(res, "Ingredient units must be a non-empty array");
-            }
-
-            if (!Array.isArray(parsed_ingredient_quantity) || parsed_ingredient_quantity.length === 0) {
-                return handleValidationError(res, "Ingredient quantities must be a non-empty array");
-            }
         } catch (error) {
-            return handleValidationError(res, "Invalid JSON format for ingredients, units, quantities or instructions");
-        }
-
-        if (
-            !Array.isArray(parsed_ingredients_id) ||
-            !Array.isArray(parsed_ingredient_unit) ||
-            !Array.isArray(parsed_ingredient_quantity) ||
-            parsed_ingredients_id.length !== parsed_ingredient_unit.length ||
-            parsed_ingredients_id.length !== parsed_ingredient_quantity.length ||
-            parsed_ingredients_id.length === 0
-        ) {
-            return handleValidationError(res, "Ingredients, units, and quantities must be non-empty arrays of the same length");
-        }
-
-        for (let i = 0; i < parsed_ingredients_id.length; i++) {
-            if (
-                parsed_ingredients_id[i] === undefined ||
-                parsed_ingredients_id[i] === null ||
-                isNaN(Number(parsed_ingredients_id[i])) ||
-                !parsed_ingredient_unit[i] ||
-                typeof parsed_ingredient_unit[i] !== "string" ||
-                parsed_ingredient_unit[i].trim().length === 0 ||
-                parsed_ingredient_quantity[i] === undefined ||
-                parsed_ingredient_quantity[i] === null ||
-                (typeof parsed_ingredient_quantity[i] !== "string" && typeof parsed_ingredient_quantity[i] !== "number") ||
-                parsed_ingredient_quantity[i].toString().trim().length === 0
-            ) {
-                return handleValidationError(res, `Invalid ingredient/unit/quantity at index ${i + 1}`);
-            }
+            return handleValidationError(res, "Invalid JSON format for instructions");
         }
 
         if (category_id) {
@@ -130,18 +71,16 @@ export const createRecipeByAdmin = async (req, res) => {
             }
         }
 
-        if (video_url && !image_url) {
-            const thumbnailUrl = getYouTubeThumbnail(video_url);
-            if (thumbnailUrl) {
-                final_image_url = thumbnailUrl;
-            } else {
-                return handleValidationError(res, "Invalid YouTube video URL");
+        // Handle image logic: if no image uploaded, try to get YouTube thumbnail
+        if (!req.files || !req.files.recipeImage || req.files.recipeImage.length === 0) {
+            if (video_url) {
+                const thumbnailUrl = getYouTubeThumbnail(video_url);
+                if (thumbnailUrl) {
+                    final_image_url = thumbnailUrl;
+                } else {
+                    return handleValidationError(res, "Invalid YouTube video URL");
+                }
             }
-        }
-
-        const { rows: ingredientRows } = await pool.query(checkIngredientsExistByIdsQuery, [parsed_ingredients_id]);
-        if (ingredientRows.length !== parsed_ingredients_id.length) {
-            return handleNotFoundError(res, "One or more ingredients not found");
         }
 
         const titleResult = await pool.query(checkRecipeTitleExistsQuery, [title]);
@@ -169,7 +108,8 @@ export const createRecipeByAdmin = async (req, res) => {
             return handleValidationError(res, "Each recipe instruction must be a non-empty string");
         }
 
-        if (req.files.recipeImage && req.files.recipeImage.length > 0) {
+        // Upload image if provided
+        if (req.files && req.files.recipeImage && req.files.recipeImage.length > 0) {
             imagePath = req.files.recipeImage[0].path;
             final_image_url = await uploadImageAndCleanup(imagePath, 'recipe_images', uploadToClodinary);
         }
@@ -189,12 +129,9 @@ export const createRecipeByAdmin = async (req, res) => {
                 parsed_prep_time,
                 parsed_cook_time,
                 parsed_serving_size,
-                parsed_ingredients_id,
                 parsed_recipe_instructions,
                 'approved',
-                true,
-                parsed_ingredient_unit,
-                parsed_ingredient_quantity
+                true
             ]
         );
 
@@ -237,13 +174,54 @@ export const createRecipeByAdmin = async (req, res) => {
 
 export const getAllRecipesForAdmin = async (req, res) => {
     try {
-        const { search = '', page = 1, limit = 10 } = req.query;
+        const {
+            search = '',
+            page = 1,
+            limit = 10,
+            category_name = '',
+            sub_category_name = '',
+            added_by_user = '',
+            added_by_admin = '',
+            admin_approved_status = '',
+            public_approved = ''
+        } = req.query;
         const offset = (parseInt(page) - 1) * parseInt(limit);
 
-        const countResult = await pool.query(getAllRecipesCountQuery, [`%${search}%`]);
+        const categoryNameFilter = category_name ? `%${category_name}%` : null;
+        const subCategoryNameFilter = sub_category_name ? `%${sub_category_name}%` : null;
+        const addedByUserFilter = added_by_user !== '' ? added_by_user : null;
+        const addedByAdminFilter = added_by_admin !== '' ? added_by_admin : null;
+        const adminApprovedStatusFilter = admin_approved_status ? admin_approved_status : null;
+        const publicApprovedFilter = public_approved !== '' ? public_approved : null;
+
+        const countResult = await pool.query(
+            getAllRecipesCountQuery,
+            [
+                `%${search}%`,
+                categoryNameFilter,
+                subCategoryNameFilter,
+                addedByUserFilter,
+                addedByAdminFilter,
+                adminApprovedStatusFilter,
+                publicApprovedFilter
+            ]
+        );
         const total = parseInt(countResult.rows[0].count, 10);
 
-        const result = await pool.query(getAllRecipesQuery, [`%${search}%`, limit, offset]);
+        const result = await pool.query(
+            getAllRecipesQuery,
+            [
+                `%${search}%`,
+                categoryNameFilter,
+                subCategoryNameFilter,
+                addedByUserFilter,
+                addedByAdminFilter,
+                adminApprovedStatusFilter,
+                publicApprovedFilter,
+                limit,
+                offset
+            ]
+        );
         const recipes = result.rows;
 
         return res.status(200).json({
@@ -340,22 +318,20 @@ export const updateRecipeByAdmin = async (req, res) => {
             prep_time = existingRecipe.prep_time,
             cook_time = existingRecipe.cook_time,
             serving_size = existingRecipe.serving_size,
-            ingredients_id = existingRecipe.ingredients_id,
-            ingredient_unit = existingRecipe.ingredient_unit,
-            ingredient_quantity = existingRecipe.ingredient_quantity,
             recipe_instructions = existingRecipe.recipe_instructions
         } = req.body;
         try {
-            if (typeof ingredients_id === "string") ingredients_id = JSON.parse(ingredients_id);
-            if (typeof ingredient_unit === "string") ingredient_unit = JSON.parse(ingredient_unit);
-            if (typeof ingredient_quantity === "string") ingredient_quantity = JSON.parse(ingredient_quantity);
             if (typeof recipe_instructions === "string") recipe_instructions = JSON.parse(recipe_instructions);
         } catch (error) {
-            return handleValidationError(res, "Invalid JSON format for ingredients, units, quantities or instructions");
+            return handleValidationError(res, "Invalid JSON format for instructions");
         }
         let final_image_url = image_url || existingRecipe.image_url;
-        if (req.files.recipeImage && req.files.recipeImage.length > 0) {
+        
+        // Handle image upload or removal
+        if (req.files && req.files.recipeImage && req.files.recipeImage.length > 0) {
+            // New image uploaded
             imagePath = req.files.recipeImage[0].path;
+            // Delete existing Cloudinary image if it exists
             if (existingRecipe.image_url && existingRecipe.image_url.includes("res.cloudinary.com")) {
                 const urlParts = existingRecipe.image_url.split("/");
                 const publicIdWithExt = urlParts.slice(-2).join("/").split(".")[0];
@@ -363,14 +339,26 @@ export const updateRecipeByAdmin = async (req, res) => {
             }
             final_image_url = await uploadImageAndCleanup(imagePath, 'recipe_images', uploadToClodinary);
         } else {
-            if ((image_url === '' || image_url === null) && existingRecipe.image_url && existingRecipe.image_url.includes("res.cloudinary.com")) {
-                const urlParts = existingRecipe.image_url.split("/");
-                const publicIdWithExt = urlParts.slice(-2).join("/").split(".")[0];
-                await deleteFromCloudinary(publicIdWithExt);
-                final_image_url = null;
-            }
-            if ((image_url === '' || image_url === null) && video_url && getYouTubeThumbnail(video_url)) {
-                final_image_url = getYouTubeThumbnail(video_url);
+            // No new image uploaded
+            if (image_url === '' || image_url === null) {
+                // Image was removed by user
+                if (existingRecipe.image_url && existingRecipe.image_url.includes("res.cloudinary.com")) {
+                    // Delete existing Cloudinary image
+                    const urlParts = existingRecipe.image_url.split("/");
+                    const publicIdWithExt = urlParts.slice(-2).join("/").split(".")[0];
+                    await deleteFromCloudinary(publicIdWithExt);
+                }
+                // Try to get YouTube thumbnail as fallback
+                if (video_url) {
+                    const thumbnailUrl = getYouTubeThumbnail(video_url);
+                    if (thumbnailUrl) {
+                        final_image_url = thumbnailUrl;
+                    } else {
+                        final_image_url = null;
+                    }
+                } else {
+                    final_image_url = null;
+                }
             }
         }
         const dbSubCategoryId = (sub_category_id && sub_category_id !== null && sub_category_id !== 'null' && sub_category_id !== 0) ? sub_category_id : null;
@@ -386,9 +374,6 @@ export const updateRecipeByAdmin = async (req, res) => {
                 Number(prep_time),
                 Number(cook_time),
                 Number(serving_size),
-                ingredients_id,
-                ingredient_unit,
-                ingredient_quantity,
                 recipe_instructions,
                 'approved',
                 true,

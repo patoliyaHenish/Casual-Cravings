@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -11,15 +11,13 @@ import {
   InputAdornment,
   IconButton,
 } from '@mui/material';
-import Autocomplete from '@mui/material/Autocomplete';
 import { useGetRecipeCategoriesQuery } from '../../../features/api/categoryApi';
-import { useGetAllIngredientsQuery } from '../../../features/api/ingredientApi';
 import { useGetAllRecipeSubCategorieDetailsQuery } from '../../../features/api/subCategoryApi';
 import * as Yup from 'yup';
 import { Add, Remove, Edit, Save, Cancel } from '@mui/icons-material';
-import { Formik, Form, useFormikContext } from 'formik';
-import { getYouTubeThumbnail, isValidYouTubeVideo } from '../../../utils/helper';
-import helper from '../../../utils/helper.json';
+import { Formik, Form } from 'formik';
+import { isValidYouTubeVideo, getYouTubeThumbnail, getYouTubeVideoTitle } from '../../../utils/helper';
+import FileUploadField from '../../../components/FileUploadField';
 
 const InstructionItem = ({ instruction, index, onUpdate, onRemove, disabled }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -52,8 +50,8 @@ const InstructionItem = ({ instruction, index, onUpdate, onRemove, disabled }) =
 
   if (isEditing) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ minWidth: 30, fontWeight: 'bold' }}>{index + 1}.</span>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="min-w-[30px] font-bold">{index + 1}.</span>
         <TextField
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
@@ -85,9 +83,9 @@ const InstructionItem = ({ instruction, index, onUpdate, onRemove, disabled }) =
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
-      <span style={{ minWidth: 30, fontWeight: 'bold', marginTop: 8 }}>{index + 1}.</span>
-      <div style={{ flex: 1, padding: '8px 12px', backgroundColor: '#f5f5f5', borderRadius: 4, minHeight: 40, display: 'flex', alignItems: 'center' }}>
+    <div className="flex items-start gap-2 mb-2">
+      <span className="min-w-[30px] font-bold mt-2">{index + 1}.</span>
+      <div className="flex-1 p-2 bg-gray-100 rounded min-h-[40px] flex items-center">
         {instruction}
       </div>
       <IconButton
@@ -130,7 +128,6 @@ const AddRecipeSchema = Yup.object().shape({
     const num = Number(value);
     return isNaN(num) ? null : num;
   }),
-  ingredients_id: Yup.array().min(1, 'At least one ingredient').required('Ingredients are required'),
   recipe_instructions: Yup.array().min(1, 'At least one instruction').required(),
   video_url: Yup.string()
     .url('Enter a valid URL')
@@ -157,66 +154,78 @@ const RecipeDialog = ({
   const [newInstruction, setNewInstruction] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [ingredientDetails, setIngredientDetails] = useState(() => {
-    const ids = form.ingredients_id || [];
-    const units = form.ingredient_unit || [];
-    const quantities = form.ingredient_quantity || [];
-    return ids.map((id, idx) => ({
-      id,
-      unit: units[idx] || '',
-      quantity: quantities[idx] || '',
-    }));
-  });
-
-  const fileInputRef = useRef();
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const [videoThumbnail, setVideoThumbnail] = useState(null);
+  const [videoTitle, setVideoTitle] = useState(null);
+  const [videoError, setVideoError] = useState(null);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoUrl, setVideoUrl] = useState(form.video_url || '');
 
   const { data: categoriesData } = useGetRecipeCategoriesQuery({ page: 1, limit: 100 });
   const { data: subCategoriesData } = useGetAllRecipeSubCategorieDetailsQuery({ page: 1, limit: 100 });
-  const { data: ingredientsData } = useGetAllIngredientsQuery({ page: 1, limit: 100 });
 
   const categories = categoriesData?.data || [];
   const subCategories = subCategoriesData?.data || [];
-  const ingredients = ingredientsData?.data || [];
 
-  const formikContext = useFormikContext?.();
+  const isYouTubeThumbnail = (url) => {
+    if (!url) return false;
+    return url.startsWith('https://img.youtube.com/vi/');
+  };
+
   useEffect(() => {
-    if (formikContext) {
-      formikContext.setFieldValue('ingredient_unit', ingredientDetails.map(d => d.unit));
-      formikContext.setFieldValue('ingredient_quantity', ingredientDetails.map(d => d.quantity));
+    if (open) {
+      setImageFile(null);
+      setImageRemoved(false);
+      setImagePreview(null);
+      if (mode === 'edit' && form.image_url && !isYouTubeThumbnail(form.image_url)) {
+        setImagePreview(form.image_url);
+      }
     }
-  }, [ingredientDetails]);
+  }, [open, mode, form.image_url]);
 
   useEffect(() => {
-    const ids = form.ingredients_id || [];
-    const units = form.ingredient_unit || [];
-    const quantities = form.ingredient_quantity || [];
-    setIngredientDetails(
-      ids.map((id, idx) => {
-        const existing = ingredientDetails.find((i) => i.id === id);
-        return existing || { id, unit: units[idx] || '', quantity: quantities[idx] || '' };
-      })
-    );
-  }, [form.ingredients_id, form.ingredient_unit, form.ingredient_quantity]);
-
-  useEffect(() => {
-    if (mode === 'edit' && form.image_url && !imageFile) {
+    if (mode === 'edit' && form.image_url && !imageFile && !imageRemoved && !isYouTubeThumbnail(form.image_url)) {
       setImagePreview(form.image_url);
     }
     if (mode === 'add' && !imageFile) {
       setImagePreview(null);
     }
-  }, [mode, form.image_url, imageFile]);
+  }, [mode, form.image_url, imageFile, imageRemoved]);
 
-  const updateIngredientDetail = (id, field, value, setFieldValue) => {
-    setIngredientDetails((prev) => {
-      const updated = prev.map((i) => (i.id === id ? { ...i, [field]: value } : i));
-      if (setFieldValue) {
-        setFieldValue('ingredient_unit', updated.map(d => d.unit));
-        setFieldValue('ingredient_quantity', updated.map(d => d.quantity));
+  useEffect(() => {
+    let ignore = false;
+    const url = videoUrl;
+    if (!url) {
+      setVideoThumbnail(null);
+      setVideoTitle(null);
+      setVideoError(null);
+      setVideoLoading(false);
+      return;
+    }
+    setVideoLoading(true);
+    setVideoError(null);
+    setVideoThumbnail(null);
+    setVideoTitle(null);
+    (async () => {
+      const valid = await isValidYouTubeVideo(url);
+      if (ignore) return;
+      if (!valid) {
+        setVideoError('Invalid or non-existent YouTube video.');
+        setVideoThumbnail(null);
+        setVideoTitle(null);
+        setVideoLoading(false);
+        return;
       }
-      return updated;
-    });
-  };
+      const thumb = getYouTubeThumbnail(url);
+      const title = await getYouTubeVideoTitle(url);
+      if (ignore) return;
+      setVideoThumbnail(thumb);
+      setVideoTitle(title);
+      setVideoError(null);
+      setVideoLoading(false);
+    })();
+    return () => { ignore = true; };
+  }, [videoUrl]);
 
   return (
     <Dialog
@@ -235,56 +244,55 @@ const RecipeDialog = ({
         initialValues={{
           ...form,
           sub_category_id: form.sub_category_id || null,
-          ingredients_id: form.ingredients_id || [],
-          ingredient_unit: form.ingredient_unit || [],
-          ingredient_quantity: form.ingredient_quantity || [],
         }}
         validationSchema={AddRecipeSchema}
         enableReinitialize
         validate={(values) => {
           const errors = {};
-          const invalidIngredients = ingredientDetails.filter(
-            (detail) => !detail.quantity || !detail.unit
-          );
-          if (invalidIngredients.length > 0) {
-            errors.ingredients_id = 'All ingredients must have a unit and quantity';
-          }
-          
           if (values.category_id) {
             const categorySubCategories = subCategories.filter(
               (sc) => sc.category_id === Number(values.category_id)
             );
             const subCategoriesExist = categorySubCategories.length > 0;
-            
             if (subCategoriesExist && !values.sub_category_id) {
               errors.sub_category_id = 'Sub Category is required for this category';
             }
-            
             if (!subCategoriesExist && values.sub_category_id) {
               errors.sub_category_id = 'No sub-categories exist for this category';
             }
           }
-          
           return errors;
         }}
         onSubmit={(values, actions) => {
-          const ingredients_id = ingredientDetails.map((detail) => detail.id);
-          const ingredient_unit = ingredientDetails.map((detail) => detail.unit);
-          const ingredient_quantity = ingredientDetails.map((detail) => detail.quantity);
-          
+          let finalImageFile = imageFile;
+          let finalImageUrl = values.image_url;
+
+          if (mode === 'edit' && imageRemoved) {
+            finalImageUrl = '';
+            finalImageFile = null;
+          }
+          else if (imageFile) {
+          }
+          else if (imagePreview) {
+            finalImageUrl = imagePreview;
+            finalImageFile = null;
+          }
+          else if (videoThumbnail) {
+            finalImageUrl = videoThumbnail;
+            finalImageFile = null;
+          }
+
           onSubmit(
             {
               ...values,
-              ingredients_id,
-              ingredient_unit,
-              ingredient_quantity,
+              image_url: finalImageUrl,
             },
             actions,
-            imageFile
+            finalImageFile
           );
         }}
       >
-        {({ values, handleChange, handleBlur, setFieldValue, setFieldTouched, errors, touched, isValid, dirty }) => (
+        {({ values, handleChange, handleBlur, setFieldValue, errors, touched, isValid, dirty }) => (
           <Form>
             <DialogContent dividers className="custom-scrollbar">
               <TextField
@@ -427,7 +435,6 @@ const RecipeDialog = ({
                   (sc) => sc.category_id === Number(values.category_id)
                 );
                 const subCategoriesExist = categorySubCategories.length > 0;
-                
                 return subCategoriesExist ? (
                   <TextField
                     select
@@ -450,125 +457,12 @@ const RecipeDialog = ({
                     ))}
                   </TextField>
                 ) : values.category_id ? (
-                  <div style={{ marginTop: 16, marginBottom: 8, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 4, color: '#666' }}>
+                  <div className="mt-4 mb-2 p-3 bg-gray-100 rounded text-gray-600">
                     No sub-categories exist for this category. Sub-category selection is not required.
                   </div>
                 ) : null;
               })()}
-              <Autocomplete
-                multiple
-                freeSolo
-                filterSelectedOptions
-                options={
-                  ingredients
-                    .filter(
-                      (ing) =>
-                        !ingredientDetails.some(detail => detail.id === ing.ingredient_id)
-                    )
-                    .map((ing) => ({ label: ing.name, id: ing.ingredient_id }))
-                }
-                getOptionLabel={(option) =>
-                  typeof option === 'string' ? option : option.label
-                }
-                value={ingredientDetails.map(detail => {
-                  const found = ingredients.find((ing) => ing.ingredient_id === detail.id);
-                  return found
-                    ? { label: found.name, id: found.ingredient_id }
-                    : { label: detail.id, id: detail.id };
-                })}
-                onChange={(event, newValue) => {
-                  const filtered = newValue.filter(val => val && (val.id || val.label));
-                  setIngredientDetails(
-                    filtered.map((val) => {
-                      const existing = ingredientDetails.find(i => i.id === (val.id || val.label));
-                      return existing || { id: val.id || val.label, unit: '', quantity: '' };
-                    })
-                  );
-                  setFieldValue(
-                    'ingredients_id',
-                    filtered.map((val) => val.id || val.label)
-                  );
-                }}
-                onInputChange={(event, newInputValue, reason) => {
-                  if (reason === 'reset' && !newInputValue) {
-                    event?.preventDefault?.();
-                  }
-                }}
-                onBlur={() => {
-                  setFieldTouched('ingredients_id', true);
-                }}
-                renderTags={() => null}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Ingredients"
-                    margin="normal"
-                    fullWidth
-                    required
-                    error={touched.ingredients_id && Boolean(errors.ingredients_id)}
-                    helperText={touched.ingredients_id && errors.ingredients_id}
-                    inputProps={{
-                      ...params.inputProps,
-                      required: false,
-                    }}
-                  />
-                )}
-              />
-              {touched.ingredients_id && errors.ingredients_id && (
-                <div style={{ color: 'red', fontSize: 12, marginTop: 8 }}>
-                  {errors.ingredients_id}
-                </div>
-              )}
-              <div style={{ marginBottom: 20 }} />
-              {ingredientDetails.length > 0 && (
-                <div style={{ marginBottom: 16 }}>
-                  {ingredientDetails.map((detail, idx) => {
-                    const ingredient = ingredients.find(i => i.ingredient_id === detail.id);
-                    return (
-                      <div key={detail.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <span style={{ minWidth: 120 }}>{ingredient ? ingredient.name : detail.id}</span>
-                        <TextField
-                          label="Quantity"
-                          value={detail.quantity}
-                          onChange={e => updateIngredientDetail(detail.id, 'quantity', e.target.value, setFieldValue)}
-                          size="small"
-                          style={{ minWidth: 70 }}
-                          inputProps={{ min: 0, step: "any" }}
-                        />
-                        <TextField
-                          select
-                          label="Unit"
-                          value={detail.unit}
-                          onChange={e => updateIngredientDetail(detail.id, 'unit', e.target.value, setFieldValue)}
-                          size="small"
-                          style={{ minWidth: 90 }}
-                        >
-                          <MenuItem value="">Unit</MenuItem>
-                          {helper.ingredientUnits.map(unit => (
-                            <MenuItem key={unit} value={unit}>{unit}</MenuItem>
-                          ))}
-                        </TextField>
-                        <Button
-                          size="small"
-                          color="error"
-                          onClick={() => {
-                            const newDetails = ingredientDetails.filter((_, i) => i !== idx);
-                            setIngredientDetails(newDetails);
-                            setFieldValue(
-                              'ingredients_id',
-                              newDetails.map(d => d.id)
-                            );
-                          }}
-                          disabled={isLoading}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div style={{ marginBottom: 16 }}>
+              <div className="mb-4">
                 <TextField
                   label="Add Instruction"
                   value={newInstruction}
@@ -590,7 +484,7 @@ const RecipeDialog = ({
                 <Button
                   variant="outlined"
                   color="primary"
-                  style={{ marginTop: 8, marginBottom: 8 }}
+                  className="mt-2 mb-2"
                   disabled={!newInstruction.trim() || isLoading}
                   onClick={() => {
                     if (newInstruction.trim()) {
@@ -604,131 +498,88 @@ const RecipeDialog = ({
                 >
                   Add Instruction
                 </Button>
-                {values.recipe_instructions.length > 0 && (
-                  <div style={{ fontWeight: 'bold', marginBottom: 4, marginTop: 8 }}>
-                    Instructions List
-                  </div>
-                )}
-                <div>
-                  {values.recipe_instructions.map((inst, idx) => (
+              </div>
+              {values.recipe_instructions.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="font-semibold mb-2">Instructions:</h4>
+                  {values.recipe_instructions.map((instruction, index) => (
                     <InstructionItem
-                      key={idx}
-                      instruction={inst}
-                      index={idx}
-                      onUpdate={(newValue) => {
-                        const updatedInstructions = [...values.recipe_instructions];
-                        updatedInstructions[idx] = newValue;
-                        setFieldValue('recipe_instructions', updatedInstructions);
+                      key={index}
+                      instruction={instruction}
+                      index={index}
+                      onUpdate={(updatedInstruction) => {
+                        const newInstructions = [...values.recipe_instructions];
+                        newInstructions[index] = updatedInstruction;
+                        setFieldValue('recipe_instructions', newInstructions);
                       }}
                       onRemove={() => {
-                        setFieldValue(
-                          'recipe_instructions',
-                          values.recipe_instructions.filter((_, i) => i !== idx)
-                        );
+                        const newInstructions = values.recipe_instructions.filter((_, i) => i !== index);
+                        setFieldValue('recipe_instructions', newInstructions);
                       }}
                       disabled={isLoading}
                     />
                   ))}
                 </div>
-                {touched.recipe_instructions && errors.recipe_instructions && (
-                  <div style={{ color: 'red', fontSize: 12 }}>{errors.recipe_instructions}</div>
-                )}
-              </div>
+              )}
               <TextField
-                label="YouTube Video URL"
+                label={(!videoTitle && !videoThumbnail) ? "Video URL (YouTube)" : ""}
                 name="video_url"
-                value={values.video_url || ''}
-                onChange={handleChange}
+                value={values.video_url}
+                onChange={e => {
+                  handleChange(e);
+                  setVideoUrl(e.target.value);
+                }}
                 onBlur={handleBlur}
                 fullWidth
                 margin="normal"
-                error={touched.video_url && Boolean(errors.video_url)}
-                helperText={touched.video_url && errors.video_url}
+                required
+                error={
+                  (!videoTitle && !videoThumbnail) && touched.video_url && Boolean(errors.video_url)
+                }
+                helperText={
+                  (!videoTitle && !videoThumbnail && touched.video_url && errors.video_url)
+                    ? errors.video_url + ' — Enter a valid YouTube video URL'
+                    : ''
+                }
+                InputLabelProps={{
+                  shrink: !!values.video_url && (!videoTitle && !videoThumbnail)
+                }}
               />
-              {values.video_url && !errors.video_url && getYouTubeThumbnail(values.video_url) && (
-                <div style={{ margin: '8px 0' }}>
-                  <img
-                    src={getYouTubeThumbnail(values.video_url)}
-                    alt="YouTube Thumbnail"
-                    style={{ width: 240, borderRadius: 8, border: '1px solid #ccc' }}
-                  />
+              {values.video_url && (
+                <div className="mb-4 flex flex-col items-start gap-2">
+                  {videoLoading && <span className="text-gray-500">Checking video...</span>}
+                  {videoError && <span className="text-red-500">{videoError}</span>}
+                  {videoThumbnail && (
+                    <img
+                      src={videoThumbnail}
+                      alt="YouTube video thumbnail"
+                      className="rounded border w-48 h-28 object-cover"
+                    />
+                  )}
+                  {videoTitle && (
+                    <span className="font-medium text-gray-700">{videoTitle}</span>
+                  )}
                 </div>
               )}
-              <div
-                onDragOver={e => { e.preventDefault(); }}
-                onDrop={e => {
-                  e.preventDefault();
-                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    const file = e.dataTransfer.files[0];
-                    setImageFile(file);
-                    setImagePreview(URL.createObjectURL(file));
-                    setFieldValue('image_url', '');
-                  }
+              <FileUploadField
+                label="Upload Image"
+                value={imageFile}
+                onChange={file => {
+                  setImageFile(file);
+                  setImageRemoved(false);
+                  setImagePreview(null);
+                  setFieldValue('image_url', '');
                 }}
-                style={{
-                  border: '2px dashed #ccc',
-                  borderRadius: 8,
-                  padding: 16,
-                  textAlign: 'center',
-                  background: '#fafafa',
-                  marginBottom: 8,
-                  marginTop: 16,
-                  cursor: 'pointer',
-                }}
-                onClick={() => fileInputRef.current.click()}
-              >
-                <Button
-                  variant="outlined"
-                  component="span"
-                >
-                  {imageFile ? "Change Image" : "Upload Image"}
-                </Button>
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  style={{ display: 'none' }}
-                  onChange={e => {
-                    const file = e.target.files[0];
-                    setImageFile(file);
-                    setImagePreview(file ? URL.createObjectURL(file) : null);
-                    setFieldValue('image_url', '');
-                  }}
-                />
-                <div style={{ marginTop: 8, color: '#888', fontSize: 14 }}>
-                  or drag and drop image here
-                </div>
-                {imagePreview && (
-                  <div style={{ marginTop: 12 }}>
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      style={{ display: 'block', margin: '0 auto', width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }}
-                    />
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      size="small"
-                      style={{ marginTop: 8 }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        setImageFile(null);
-                        setImagePreview(null);
-                        setFieldValue('image_url', '');
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                )}
-                {touched.image_url && errors.image_url && (
-                  <div style={{ color: 'red', marginTop: 8, fontSize: 13 }}>
-                    {errors.image_url}
-                  </div>
-                )}
-              </div>
-           </DialogContent>
+                preview={imagePreview}
+                setPreview={setImagePreview}
+                accept="image/*"
+                style={{ marginBottom: 16 }}
+                error={Boolean(errors.image_url)}
+                helperText={touched.image_url && errors.image_url}
+                showRemoveButton={mode === 'edit' && !imageRemoved}
+                onRemove={() => setImageRemoved(true)}
+              />
+            </DialogContent>
             <DialogActions>
               <Button onClick={onClose} disabled={isLoading}>
                 Cancel
@@ -736,10 +587,24 @@ const RecipeDialog = ({
               <Button
                 type="submit"
                 variant="contained"
-                color="primary"
-                disabled={isLoading || !isValid || !dirty}
+                disabled={
+                  !isValid ||
+                  !dirty ||
+                  isLoading ||
+                  !values.title ||
+                  !values.description ||
+                  values.description.trim().split(/\s+/).filter(Boolean).length < 50 ||
+                  !values.prep_time ||
+                  !values.cook_time ||
+                  !values.serving_size ||
+                  !values.category_id ||
+                  (subCategories.filter(sc => sc.category_id === Number(values.category_id)).length > 0 && !values.sub_category_id) ||
+                  values.recipe_instructions.length === 0 ||
+                  !values.video_url
+                }
+                startIcon={isLoading && <CircularProgress size={20} />}
               >
-                {isLoading ? <CircularProgress size={24} /> : (mode === 'edit' ? 'Update' : 'Add')}
+                {isLoading ? 'Saving...' : mode === 'edit' ? 'Update Recipe' : 'Add Recipe'}
               </Button>
             </DialogActions>
           </Form>

@@ -154,16 +154,11 @@ const AddSubCategoryDialog = ({
                         onDragOver={e => { e.preventDefault(); setDragActive(true); }}
                         onDragLeave={e => { e.preventDefault(); setDragActive(false); }}
                         onDrop={handleDrop}
-                        style={{
-                            border: dragActive ? '2px dashed #f59e42' : '2px dashed #ccc',
-                            borderRadius: 8,
-                            padding: 16,
-                            textAlign: 'center',
-                            background: dragActive ? '#fff7ed' : '#fafafa',
-                            marginBottom: 8,
-                            marginTop: 16,
-                            cursor: 'pointer',
-                        }}
+                        className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer mb-2 mt-4 transition-colors ${
+                            dragActive 
+                                ? 'border-[#f59e42] bg-[#fff7ed]' 
+                                : 'border-gray-300 bg-gray-50'
+                        }`}
                         onClick={() => fileInputRef.current.click()}
                     >
                         <Button
@@ -176,22 +171,21 @@ const AddSubCategoryDialog = ({
                             type="file"
                             accept="image/*"
                             ref={fileInputRef}
-                            style={{ display: 'none' }}
+                            className="hidden"
                             onChange={handleImageChange}
                         />
-                        <div style={{ marginTop: 8, color: '#888', fontSize: 14 }}>
+                        <div className="mt-2 text-gray-500 text-sm">
                             or drag and drop image here
                         </div>
                         {imagePreview && (
                             <img
                                 src={imagePreview}
                                 alt="Preview"
-                                className="h-20 w-20 object-cover rounded mt-2"
-                                style={{ display: 'block', margin: '12px auto 0' }}
+                                className="h-20 w-20 object-cover rounded mt-2 block mx-auto"
                             />
                         )}
                         {formik.touched.image && formik.errors.image && (
-                            <div style={{ color: 'red', marginTop: 8, fontSize: 13 }}>
+                            <div className="text-red-500 mt-2 text-xs">
                                 {formik.errors.image}
                             </div>
                         )}

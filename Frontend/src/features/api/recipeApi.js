@@ -26,10 +26,23 @@ export const recipeApi = createApi({
             invalidatesTags: ["Refetch_Recipe"],
         }),
         getAllRecipesForAdmin: builder.query({
-            query: ({ search = '', page = 1, limit = 10 } = {}) => ({
-                url: `/get-all-recipes-for-admin?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`,
+            query: ({ search = '', page = 1, limit = 10, category_name = '', sub_category_name = '', added_by_user = '', added_by_admin = '', admin_approved_status = '', public_approved = '' } = {}) => {
+                const params = new URLSearchParams({
+                    search,
+                    page,
+                    limit,
+                });
+                if (category_name) params.append('category_name', category_name);
+                if (sub_category_name) params.append('sub_category_name', sub_category_name);
+                if (added_by_user !== '') params.append('added_by_user', added_by_user);
+                if (added_by_admin !== '') params.append('added_by_admin', added_by_admin);
+                if (admin_approved_status) params.append('admin_approved_status', admin_approved_status);
+                if (public_approved !== '') params.append('public_approved', public_approved);
+                return {
+                    url: `/get-all-recipes-for-admin?${params.toString()}`,
                 method: "GET",
-            }),
+                };
+            },
             providesTags: ["Refetch_Recipe"],
         }),
         getRecipeByIdForAdmin: builder.query({

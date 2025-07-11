@@ -10,7 +10,6 @@ import MyProfile from "../pages/users/MyProfile";
 import UserNotAuthentiCated from "../components/UserNotAuthentiCated";
 import RecipeCategory from "../pages/admin/category management/RecipeCategory";
 import RecipeSubCategory from "../pages/admin/sub-category/RecipeSubCategory";
-import Ingredient from "../pages/admin/ingredient management/Ingredient";
 import Recipe from "../pages/admin/recipe management/Recipe";
 
 export const appRouter = createBrowserRouter([
@@ -59,14 +58,6 @@ export const appRouter = createBrowserRouter([
                 element: (
                     <ProtectedRoute allowedRoles={["admin"]}>
                         <RecipeSubCategory/>
-                    </ProtectedRoute>
-                )
-            },
-            {
-                path: "/admin/manage-ingredients",
-                element: (
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                        <Ingredient />
                     </ProtectedRoute>
                 )
             },

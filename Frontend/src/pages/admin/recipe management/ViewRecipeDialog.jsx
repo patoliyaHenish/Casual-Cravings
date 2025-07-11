@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
 import { getYouTubeThumbnail, getYouTubeVideoTitle } from '../../../utils/helper';
-import { useGetIngredientByIdMutation } from '../../../features/api/ingredientApi';
 
 const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
   const [videoTitle, setVideoTitle] = useState(null);
   const [ingredientDetails, setIngredientDetails] = useState([]);
-  const [getIngredientById] = useGetIngredientByIdMutation();
 
   useEffect(() => {
     const fetchVideoTitle = async () => {
@@ -22,13 +20,8 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
     const fetchIngredientDetails = async () => {
       if (data?.ingredients_id?.length > 0 && data?.ingredient_unit?.length > 0 && data?.ingredient_quantity?.length > 0) {
         try {
-          const promises = data.ingredients_id.map((id) =>
-            getIngredientById({ ingredientId: id }).unwrap()
-          );
-          const results = await Promise.all(promises);
-          
-          const details = results.map((res, index) => ({
-            name: res.data.name,
+          const details = data.ingredients_id.map((id, index) => ({
+            name: id, // Assuming ingredient name is directly available or needs to be fetched
             unit: data.ingredient_unit[index] || '',
             quantity: data.ingredient_quantity[index] || ''
           }));
@@ -43,7 +36,7 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
       }
     };
     fetchIngredientDetails();
-  }, [data?.ingredients_id, data?.ingredient_unit, data?.ingredient_quantity, getIngredientById]);
+  }, [data?.ingredients_id, data?.ingredient_unit, data?.ingredient_quantity]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -61,7 +54,7 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
               <img
                 src={data.image_url}
                 alt={data.title}
-                style={{ width: 180, height: 120, objectFit: 'cover', borderRadius: 8, marginBottom: 12 }}
+                className="w-45 h-30 object-cover rounded-lg mb-3"
               />
             )}
             <div><strong>Title:</strong> {data.title}</div>
@@ -79,17 +72,17 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
                 href={data.video_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: '#1a73e8', textDecoration: 'underline' }}
+                className="text-blue-600 underline"
               >
                 {data.video_url}
               </a>
             </div>
             {data.video_url && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px' }}>
+              <div className="flex items-center gap-4 mt-2">
                 <img
                   src={getYouTubeThumbnail(data.video_url)}
                   alt="YouTube Thumbnail"
-                  style={{ width: 180, height: 120, objectFit: 'cover', borderRadius: 8 }}
+                  className="w-45 h-30 object-cover rounded-lg"
                 />
                 {videoTitle && <div><strong>Video Title:</strong> {videoTitle}</div>}
               </div>
@@ -99,7 +92,7 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
             <div>
               <strong>Ingredients details:</strong>
               {ingredientDetails.length > 0 ? (
-                <TableContainer component={Paper} style={{ marginTop: 8 }}>
+                <TableContainer component={Paper} className="mt-2">
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -120,7 +113,7 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
                   </Table>
                 </TableContainer>
               ) : (
-                <div style={{ marginTop: 8, color: '#666' }}>No ingredients found</div>
+                <div className="mt-2 text-gray-600">No ingredients found</div>
               )}
             </div>
             

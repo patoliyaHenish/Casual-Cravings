@@ -162,7 +162,12 @@ const RecipeCategory = () => {
 
 
   const columns = [
-    { header: '#', field: 'id', headerStyle: { width: 60 } },
+    {
+      header: '#',
+      field: 'index',
+      headerStyle: { width: 60 },
+      render: (row, index) => (page - 1) * limit + index + 1
+    },
     { header: 'Name', field: 'name' },
     { header: 'Description', field: 'description' },
     { 

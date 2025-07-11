@@ -1,10 +1,9 @@
 export const insertRecipeQuery = `
     INSERT INTO recipe (
         user_id, category_id, sub_category_id, title, description, video_url, image_url,
-        prep_time, cook_time, serving_size, ingredients_id, recipe_instructions, admin_approved_status, added_by_admin,
-        ingredient_unit, ingredient_quantity
+        prep_time, cook_time, serving_size, recipe_instructions, admin_approved_status, added_by_admin
     ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
     ) RETURNING *;
 `;
 
@@ -31,14 +30,11 @@ export const updateRecipeQuery = `
         prep_time = $7,
         cook_time = $8,
         serving_size = $9,
-        ingredients_id = $10,
-        ingredient_unit = $11,
-        ingredient_quantity = $12,
-        recipe_instructions = $13,
-        admin_approved_status = $14,
-        added_by_admin = $15,
+        recipe_instructions = $10,
+        admin_approved_status = $11,
+        added_by_admin = $12,
         updated_at = CURRENT_TIMESTAMP
-    WHERE recipe_id = $16
+    WHERE recipe_id = $13
     RETURNING *;
 `;
 
@@ -54,7 +50,16 @@ export const selectRecipeByIdQuery = `
 `;
 
 export const getAllRecipesCountQuery = `
-    SELECT COUNT(*) FROM recipe WHERE LOWER(title) LIKE LOWER($1)
+    SELECT COUNT(*) FROM recipe r
+    LEFT JOIN recipe_category rc ON r.category_id = rc.category_id
+    LEFT JOIN recipe_sub_category rsc ON r.sub_category_id = rsc.sub_category_id
+    WHERE LOWER(r.title) LIKE LOWER($1)
+      AND ($2::text IS NULL OR LOWER(rc.name) LIKE LOWER($2))
+      AND ($3::text IS NULL OR LOWER(rsc.name) LIKE LOWER($3))
+      AND ($4::text IS NULL OR CAST(r.added_by_user AS TEXT) = $4)
+      AND ($5::text IS NULL OR CAST(r.added_by_admin AS TEXT) = $5)
+      AND ($6::text IS NULL OR LOWER(r.admin_approved_status) = LOWER($6))
+      AND ($7::text IS NULL OR CAST(r.public_approved AS TEXT) = $7)
 `;
 
 export const getAllRecipesQuery = `
@@ -72,6 +77,12 @@ export const getAllRecipesQuery = `
     LEFT JOIN recipe_category rc ON r.category_id = rc.category_id
     LEFT JOIN recipe_sub_category rsc ON r.sub_category_id = rsc.sub_category_id
     WHERE LOWER(r.title) LIKE LOWER($1)
+      AND ($2::text IS NULL OR LOWER(rc.name) LIKE LOWER($2))
+      AND ($3::text IS NULL OR LOWER(rsc.name) LIKE LOWER($3))
+      AND ($4::text IS NULL OR CAST(r.added_by_user AS TEXT) = $4)
+      AND ($5::text IS NULL OR CAST(r.added_by_admin AS TEXT) = $5)
+      AND ($6::text IS NULL OR LOWER(r.admin_approved_status) = LOWER($6))
+      AND ($7::text IS NULL OR CAST(r.public_approved AS TEXT) = $7)
     ORDER BY r.created_at DESC
-    LIMIT $2 OFFSET $3
+    LIMIT $8 OFFSET $9
 `;

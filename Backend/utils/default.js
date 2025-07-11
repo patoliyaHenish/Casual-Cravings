@@ -6,7 +6,6 @@ import { userTableQuery } from '../query/users/userTable.js';
 import { createRecipeCategoryTable } from '../query/recipe category/recipeCategoryTable.js';
 import { createSubCategoryTable } from '../query/sub category/subCategoryTable.js';
 import { createRecipeTable } from '../query/recipe/recipeTable.js';
-import { createIngredientsTable } from '../query/ingredients/ingredientsTable.js';
 import { createRecipeInstructionTable } from '../query/recipe instruction/recipeInstructionTable.js';
 import { createCommentTable } from '../query/comment/commentTable.js';
 import { createLikeTable } from '../query/likes/likeTable.js';
@@ -84,14 +83,6 @@ const createRecipeTableIfNotExists = async () => {
     }
 };
 
-const createIngredientsTableIfNotExists = async () => {
-    try {
-        await pool.query(createIngredientsTable);
-    } catch (error) {
-        console.error('Error creating ingredients table:', error);
-    }
-};
-
 const createRecipeInstructionsTableIfNotExists = async () => {
     try {
         await pool.query(createRecipeInstructionTable);
@@ -139,7 +130,6 @@ export const executeSetup = async () => {
     await createRecipeCategoryTableIfNotExists();
     await createSubCategoryTableIfNotExists();
     await createRecipeTableIfNotExists();
-    await createIngredientsTableIfNotExists();
     await createRecipeInstructionsTableIfNotExists();
     await createCommentTableIfNotExists();
     await createLikeTableIfNotExists();
