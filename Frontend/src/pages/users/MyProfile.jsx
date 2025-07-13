@@ -19,14 +19,11 @@ const MyProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
 
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
 
   const [showCurrent, setShowCurrent] = useState(false);
-const [showNew, setShowNew] = useState(false);
-const [showConfirm, setShowConfirm] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const passwordSchema = Yup.object().shape({
     currentPassword: Yup.string().required('Current password is required'),
@@ -70,33 +67,12 @@ const [showConfirm, setShowConfirm] = useState(false);
       await updateProfile(formData).unwrap();
       setMessage('Profile updated successfully!');
       setIsEditing(false);
-    } catch (err) {
+    } catch {
       setMessage('Failed to update profile.');
     }
   };
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setPasswordMsg('');
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordMsg('All fields are required.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordMsg('New passwords do not match.');
-      return;
-    }
-    try {
-      const res = await changePassword({ currentPassword, newPassword }).unwrap();
-      setPasswordMsg(res.message || 'Password changed successfully!');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setTimeout(() => setShowPasswordDialog(false), 1200);
-    } catch (err) {
-      setPasswordMsg(err?.data?.message || 'Failed to change password.');
-    }
-  };
+
 
   if (isLoading) return <div>Loading...</div>;
 
@@ -126,14 +102,17 @@ const [showConfirm, setShowConfirm] = useState(false);
               >
                 Edit Profile
               </Button>
-              <Button
-                variant="outlined"
-                color="secondary"
-                className="mt-2"
-                onClick={() => setShowPasswordDialog(true)}
-              >
-                Change Password
-              </Button>
+              {/* Only show Change Password button if user has a password (not Google/OAuth users) */}
+              {data?.user?.password && (
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  className="mt-2"
+                  onClick={() => setShowPasswordDialog(true)}
+                >
+                  Change Password
+                </Button>
+              )}
               {message && (
                 <Typography variant="body2" color={message.includes('success') ? 'green' : 'red'}>
                   {message}
@@ -196,135 +175,135 @@ const [showConfirm, setShowConfirm] = useState(false);
         </CardContent>
       </Card>
       <Dialog
-  open={showPasswordDialog}
-  onClose={(event, reason) => {
-    if (reason !== 'backdropClick') {
-      setShowPasswordDialog(false);
-    }
-  }}
->
-  <DialogTitle>Change Password</DialogTitle>
-  <Formik
-    initialValues={{
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    }}
-    validationSchema={passwordSchema}
-    onSubmit={async (values, { setSubmitting, setStatus, resetForm }) => {
-      setPasswordMsg('');
-      try {
-        const res = await changePassword({
-          currentPassword: values.currentPassword,
-          newPassword: values.newPassword,
-        }).unwrap();
-        setPasswordMsg(res.message || 'Password changed successfully!');
-        setStatus({ success: true });
-        resetForm();
-        setTimeout(() => setShowPasswordDialog(false), 1200);
-      } catch (err) {
-        setPasswordMsg(err?.data?.message || 'Failed to change password.');
-        setStatus({ success: false });
-      }
-      setSubmitting(false);
-    }}
-  >
-    {({ values, errors, touched, handleChange, handleBlur, isSubmitting }) => (
-      <Form>
-        <DialogContent className="flex flex-col gap-3 min-w-[300px]">
-          <TextField
-            label="Current Password"
-            name="currentPassword"
-            type={showCurrent ? "text" : "password"}
-            value={values.currentPassword}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            error={touched.currentPassword && Boolean(errors.currentPassword)}
-            helperText={touched.currentPassword && errors.currentPassword}
-            fullWidth
-            required
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label="toggle current password visibility"
-                    onClick={() => setShowCurrent((show) => !show)}
-                    edge="end"
-                  >
-                    {showCurrent ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-          <TextField
-            label="New Password"
-            name="newPassword"
-            type={showNew ? "text" : "password"}
-            value={values.newPassword}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            error={touched.newPassword && Boolean(errors.newPassword)}
-            helperText={touched.newPassword && errors.newPassword}
-            fullWidth
-            required
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label="toggle new password visibility"
-                    onClick={() => setShowNew((show) => !show)}
-                    edge="end"
-                  >
-                    {showNew ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-          <TextField
-            label="Confirm New Password"
-            name="confirmPassword"
-            type={showConfirm ? "text" : "password"}
-            value={values.confirmPassword}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            error={touched.confirmPassword && Boolean(errors.confirmPassword)}
-            helperText={touched.confirmPassword && errors.confirmPassword}
-            fullWidth
-            required
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label="toggle confirm password visibility"
-                    onClick={() => setShowConfirm((show) => !show)}
-                    edge="end"
-                  >
-                    {showConfirm ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-          {passwordMsg && (
-            <Typography variant="body2" color={passwordMsg.includes('success') ? 'green' : 'red'}>
-              {passwordMsg}
-            </Typography>
+        open={showPasswordDialog}
+        onClose={(event, reason) => {
+          if (reason !== 'backdropClick') {
+            setShowPasswordDialog(false);
+          }
+        }}
+      >
+        <DialogTitle>Change Password</DialogTitle>
+        <Formik
+          initialValues={{
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+          }}
+          validationSchema={passwordSchema}
+          onSubmit={async (values, { setSubmitting, setStatus, resetForm }) => {
+            setPasswordMsg('');
+            try {
+              const res = await changePassword({
+                currentPassword: values.currentPassword,
+                newPassword: values.newPassword,
+              }).unwrap();
+              setPasswordMsg(res.message || 'Password changed successfully!');
+              setStatus({ success: true });
+              resetForm();
+              setTimeout(() => setShowPasswordDialog(false), 1200);
+            } catch (err) {
+              setPasswordMsg(err?.data?.message || 'Failed to change password.');
+              setStatus({ success: false });
+            }
+            setSubmitting(false);
+          }}
+        >
+          {({ values, errors, touched, handleChange, handleBlur, isSubmitting }) => (
+            <Form>
+              <DialogContent className="flex flex-col gap-3 min-w-[300px]">
+                <TextField
+                  label="Current Password"
+                  name="currentPassword"
+                  type={showCurrent ? "text" : "password"}
+                  value={values.currentPassword}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched.currentPassword && Boolean(errors.currentPassword)}
+                  helperText={touched.currentPassword && errors.currentPassword}
+                  fullWidth
+                  required
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle current password visibility"
+                          onClick={() => setShowCurrent((show) => !show)}
+                          edge="end"
+                        >
+                          {showCurrent ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  label="New Password"
+                  name="newPassword"
+                  type={showNew ? "text" : "password"}
+                  value={values.newPassword}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched.newPassword && Boolean(errors.newPassword)}
+                  helperText={touched.newPassword && errors.newPassword}
+                  fullWidth
+                  required
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle new password visibility"
+                          onClick={() => setShowNew((show) => !show)}
+                          edge="end"
+                        >
+                          {showNew ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  label="Confirm New Password"
+                  name="confirmPassword"
+                  type={showConfirm ? "text" : "password"}
+                  value={values.confirmPassword}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched.confirmPassword && Boolean(errors.confirmPassword)}
+                  helperText={touched.confirmPassword && errors.confirmPassword}
+                  fullWidth
+                  required
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle confirm password visibility"
+                          onClick={() => setShowConfirm((show) => !show)}
+                          edge="end"
+                        >
+                          {showConfirm ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                {passwordMsg && (
+                  <Typography variant="body2" color={passwordMsg.includes('success') ? 'green' : 'red'}>
+                    {passwordMsg}
+                  </Typography>
+                )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setShowPasswordDialog(false)} color="secondary">
+                  Cancel
+                </Button>
+                <Button type="submit" color="primary" variant="contained" disabled={isSubmitting || isChanging}>
+                  {isSubmitting || isChanging ? 'Changing...' : 'Change Password'}
+                </Button>
+              </DialogActions>
+            </Form>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowPasswordDialog(false)} color="secondary">
-            Cancel
-          </Button>
-          <Button type="submit" color="primary" variant="contained" disabled={isSubmitting || isChanging}>
-            {isSubmitting || isChanging ? 'Changing...' : 'Change Password'}
-          </Button>
-        </DialogActions>
-      </Form>
-    )}
-  </Formik>
-</Dialog>
+        </Formik>
+      </Dialog>
     </div>
   );
 };

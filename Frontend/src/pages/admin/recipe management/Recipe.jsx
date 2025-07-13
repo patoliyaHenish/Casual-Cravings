@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import RecipeDialog from './AddRecipeDialog';
 import ViewRecipeDialog from './ViewRecipeDialog';
-import DeleteRecipeDialog from './DeleteRecipeDialog';
 import {
   useGetAllRecipesForAdminQuery,
   useCreateRecipeByAdminMutation,
@@ -13,6 +12,7 @@ import {
 } from '../../../features/api/recipeApi';
 import { useGetRecipeCategoriesQuery } from '../../../features/api/categoryApi';
 import { useGetAllRecipeSubCategorieDetailsQuery } from '../../../features/api/subCategoryApi';
+
 import { Button, FormControl, Select, MenuItem } from '@mui/material';
 import { toast } from 'sonner';
 import {
@@ -22,7 +22,7 @@ import {
   ActionButtons,
   ConfirmDialog
 } from '../../../components/common';
-import { useRef } from 'react';
+
 
 const Recipe = () => {
   const [search, setSearch] = useState('');
@@ -31,11 +31,8 @@ const Recipe = () => {
   const [deleteId, setDeleteId] = useState(null);
   const [editId, setEditId] = useState(null);
   const [viewId, setViewId] = useState(null);
-  const [viewData, setViewData] = useState(null);
-  const [isViewLoading, setIsViewLoading] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', prep_time: '', cook_time: '', serving_size: '', ingredients_id: [], recipe_instructions: [], keywords: [] });
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ title: '', description: '', prep_time: '', cook_time: '', serving_size: '', ingredients_id: [], recipe_instructions: [], keywords: [] });
   const [nutritionModalOpen, setNutritionModalOpen] = useState(false);
   const [nutritionLoading, setNutritionLoading] = useState(false);
   const [nutritionData, setNutritionData] = useState(null);
@@ -50,6 +47,22 @@ const Recipe = () => {
   const [publicApproved, setPublicApproved] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const filterRef = useRef();
+
+  let defaultForm = {
+    title: '',
+    description: '',
+    prep_time: '',
+    cook_time: '',
+    serving_size: '',
+    category_id: '',
+    sub_category_id: null,
+    ingredients: [],
+    recipe_instructions: [],
+    keywords: [],
+    video_url: '',
+    image_url: '',
+  };
+
 
   function singularize(word) {
     if (word.endsWith('es')) return word.slice(0, -2);
@@ -96,7 +109,6 @@ const Recipe = () => {
     } catch (e) {
       return { notFound: true, name: ingredient, searchAttempts, apiError: true };
     }
-    // Extract all needed nutrients
     const nutrients = {
       calories: 0,
       fat: 0,
@@ -122,25 +134,24 @@ const Recipe = () => {
       if (name === 'sugars, total including nlea') nutrients.sugars = n.amount;
       if (name === 'protein') nutrients.protein = n.amount;
     });
-    // Unit conversion to grams/ml for USDA API
     const unitToGram = {
       g: 1,
       kg: 1000,
       mg: 0.001,
       lb: 453.592,
       oz: 28.3495,
-      ml: 1, // for water-like liquids
+      ml: 1,
       l: 1000,
       tbsp: 15,
       tsp: 5,
       cup: 240,
-      piece: 50, // rough average, can be improved
-      slice: 30, // rough average
-      clove: 5, // garlic clove
-      pinch: 0.36, // 1/8 tsp
-      dash: 0.6, // 1/12 tsp
+      piece: 50,
+      slice: 30,
+      clove: 5,
+      pinch: 0.36,
+      dash: 0.6,
       ounce: 28.3495,
-      can: 400 // average can size in grams
+      can: 400
     };
     let factor = 1;
     if (!qty || isNaN(qty) || qty <= 0) { qty = 100; unit = 'g'; }
@@ -150,7 +161,6 @@ const Recipe = () => {
     } else {
       factor = qty / 100;
     }
-    // Multiply all nutrients by factor
     Object.keys(nutrients).forEach(key => { nutrients[key] = nutrients[key] * factor; });
     return {
       ...nutrients,
@@ -166,7 +176,6 @@ const Recipe = () => {
 
 
 
-  // Cleanup nutrition state when modal is closed
   useEffect(() => {
     if (!nutritionModalOpen) {
       setNutritionRecipeId(null);
@@ -175,14 +184,22 @@ const Recipe = () => {
     }
   }, [nutritionModalOpen]);
 
-  const { data: categoriesData } = useGetRecipeCategoriesQuery({ page: 1, limit: 100 });
-  const { data: subCategoriesData } = useGetAllRecipeSubCategorieDetailsQuery({ page: 1, limit: 100 });
-  const categories = categoriesData?.data || [];
-  const subCategories = subCategoriesData?.data || [];
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (filterRef.current && !filterRef.current.contains(event.target)) {
+        setShowFilters(false);
+      }
+    }
+    if (showFilters) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFilters]);
 
   const { data: nutritionRecipeData, isLoading: isNutritionLoading } = useGetRecipeByIdForAdminQuery(nutritionRecipeId, { skip: !nutritionRecipeId });
 
-  // Nutrition calculation effect - moved after nutritionRecipeData is declared
   useEffect(() => {
     if (nutritionModalOpen && nutritionRecipeData?.data) {
       setNutritionLoading(true);
@@ -260,11 +277,14 @@ const Recipe = () => {
   const [updateRecipeByAdmin, { isLoading: isUpdating }] = useUpdateRecipeByAdminMutation();
   const [updateRecipeAdminApprovedStatus] = useUpdateRecipeAdminApprovedStatusMutation();
   const [updateRecipePublicApprovedStatus] = useUpdateRecipePublicApprovedStatusMutation();
-  const {
-    data: viewRecipeResponse,
-    error: viewRecipeError,
-  } = useGetRecipeByIdForAdminQuery(viewId, { skip: !viewId });
+
   const { data: editRecipeData, isLoading: isEditLoading } = useGetRecipeByIdForAdminQuery(editId, { skip: !editId });
+  const { data: viewRecipeData, isLoading: isViewLoading } = useGetRecipeByIdForAdminQuery(viewId, { skip: !viewId });
+  
+  const { data: categoriesData } = useGetRecipeCategoriesQuery({ page: 1, limit: 100 });
+  const { data: subCategoriesData } = useGetAllRecipeSubCategorieDetailsQuery({ page: 1, limit: 100 });
+  const categories = categoriesData?.data || [];
+  const subCategories = subCategoriesData?.data || [];
 
   const isAnyDialogOpen = addOpen || !!editId || !!viewId || !!deleteId;
 
@@ -309,22 +329,7 @@ const Recipe = () => {
     }
   };
 
-  useEffect(() => {
-    if (viewId) {
-      setIsViewLoading(true);
-    }
-    if (viewRecipeResponse && viewRecipeResponse.data) {
-      setViewData(viewRecipeResponse.data);
-      setIsViewLoading(false);
-    } else if (viewRecipeError) {
-      setViewData(null);
-      setIsViewLoading(false);
-    }
-    if (!viewId) {
-      setViewData(null);
-      setIsViewLoading(false);
-    }
-  }, [viewId, viewRecipeResponse, viewRecipeError]);
+
 
   useEffect(() => {
     if (editId && editRecipeData && editRecipeData.data) {
@@ -351,20 +356,6 @@ const Recipe = () => {
   const handleAddOpen = () => setAddOpen(true);
   const handleAddClose = () => {
     setAddOpen(false);
-    setAddForm({
-      title: '',
-      description: '',
-      prep_time: '',
-      cook_time: '',
-      serving_size: '',
-      category_id: '',
-      sub_category_id: null,
-      ingredients: [],
-      recipe_instructions: [],
-      keywords: [],
-      video_url: '',
-      image_url: '',
-    });
   };
 
   const handleAddSubmit = async (values, { resetForm }, imageFile) => {
@@ -373,7 +364,6 @@ const Recipe = () => {
 
     formData.append('ingredients', JSON.stringify(values.ingredients));
     formData.append('recipe_instructions', JSON.stringify(values.recipe_instructions));
-    // Fix: append keywords as array
     (values.keywords || []).forEach((kw) => {
       formData.append('keywords[]', kw);
     });
@@ -421,7 +411,6 @@ const Recipe = () => {
       const formData = new FormData();
       formData.append('ingredients', JSON.stringify(values.ingredients));
       formData.append('recipe_instructions', JSON.stringify(values.recipe_instructions));
-      // Fix: append keywords as array
       (values.keywords || []).forEach((kw) => {
         formData.append('keywords[]', kw);
       });
@@ -574,27 +563,15 @@ const Recipe = () => {
     }
   ];
 
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (filterRef.current && !filterRef.current.contains(event.target)) {
-        setShowFilters(false);
-      }
-    }
-    if (showFilters) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showFilters]);
+
 
   return (
     <div className={`p-6 mt-16 transition-all duration-200 ${isAnyDialogOpen ? 'blur-sm pointer-events-none select-none' : ''}`}>
       <PageHeader title="Manage Recipes">
         <div className="flex flex-wrap gap-2 mb-4 items-center">
-        <SearchBar
-          value={search}
-          onChange={handleSearchChange}
+          <SearchBar
+            value={search}
+            onChange={handleSearchChange}
             placeholder="Search by title or keywords..."
             label="Search recipes"
           />
@@ -692,15 +669,15 @@ const Recipe = () => {
               </div>
             </>
           )}
-        <Button
-          variant="contained"
-          color="warning"
-          onClick={handleAddOpen}
-          className="w-full sm:w-auto"
-          sx={{ mt: { xs: 1, sm: 0 } }}
-        >
-          Add Recipe
-        </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handleAddOpen}
+            className="w-full sm:w-auto"
+            sx={{ mt: { xs: 1, sm: 0 } }}
+          >
+            Add Recipe
+          </Button>
         </div>
       </PageHeader>
             <DataTable
@@ -716,7 +693,6 @@ const Recipe = () => {
       />
       {nutritionModalOpen && nutritionRecipeId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-2 sm:px-0 mt-0 md:mt-12" style={{ backdropFilter: 'blur(6px)', background: 'rgba(0,0,0,0.10)' }}>
-          {/* Overlay to close modal on outside click */}
           <div
             className="absolute inset-0 w-full h-full cursor-pointer"
             style={{ zIndex: 1 }}
@@ -760,7 +736,6 @@ const Recipe = () => {
               >
                 NUTRITION INFO
               </div>
-              {/* Serving size and servings per recipe */}
               {nutritionData ? (
                  <>
                     <div className="mb-2" style={{ fontSize: '0.92rem' }}>
@@ -802,14 +777,12 @@ const Recipe = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {/* Calories */}
                           <tr>
                             <td style={{ fontWeight: 700, padding: '6px 6px 2px 6px', fontSize: '1rem', borderBottom: '1px solid #eee' }}>
                               Calories: {nutritionData.perServing.calories.toFixed(1)}
                             </td>
                             <td style={{ padding: '6px 6px 2px 6px', borderBottom: '1px solid #eee' }}></td>
                           </tr>
-                          {/* Calories from Fat */}
                           <tr>
                             <td style={{ padding: '2px 6px 2px 18px', color: '#222' }}>
                               Calories from Fat {(nutritionData.perServing.fat * 9).toFixed(0)} g
@@ -818,13 +791,11 @@ const Recipe = () => {
                               {((nutritionData.perServing.fat/78)*100).toFixed(0)} %
                             </td>
                           </tr>
-                          {/* Section divider */}
                           <tr>
                             <td colSpan={2}>
                               <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
                             </td>
                           </tr>
-                          {/* Total Fat (dotted underline) */}
                           <tr>
                             <td
                               style={{
@@ -846,7 +817,6 @@ const Recipe = () => {
                               {((nutritionData.perServing.fat/78)*100).toFixed(0)} %
                             </td>
                           </tr>
-                          {/* Saturated Fat */}
                           <tr>
                             <td style={{ padding: '2px 6px 2px 30px', color: '#222' }}>
                               Saturated Fat {nutritionData.perServing.satFat ? nutritionData.perServing.satFat.toFixed(1) : 0} g
@@ -855,13 +825,11 @@ const Recipe = () => {
                               {((nutritionData.perServing.satFat/20)*100).toFixed(0)} %
                             </td>
                           </tr>
-                          {/* Section divider */}
                           <tr>
                             <td colSpan={2}>
                               <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
                             </td>
                           </tr>
-                          {/* Cholesterol */}
                           <tr>
                             <td style={{ fontWeight: 700, padding: '4px 6px 2px 6px' }}>
                               Cholesterol {nutritionData.perServing.cholesterol ? nutritionData.perServing.cholesterol.toFixed(1) : 0} mg
@@ -870,7 +838,6 @@ const Recipe = () => {
                               {((nutritionData.perServing.cholesterol/300)*100).toFixed(0)} %
                             </td>
                           </tr>
-                          {/* Sodium */}
                           <tr>
                             <td style={{ fontWeight: 700, padding: '2px 6px 2px 6px' }}>
                               Sodium {nutritionData.perServing.sodium ? nutritionData.perServing.sodium.toFixed(1) : 0} mg
@@ -879,13 +846,11 @@ const Recipe = () => {
                               {((nutritionData.perServing.sodium/2300)*100).toFixed(0)} %
                             </td>
                           </tr>
-                          {/* Section divider */}
                           <tr>
                             <td colSpan={2}>
                               <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
                             </td>
                           </tr>
-                          {/* Total Carbohydrate (dotted underline) */}
                           <tr>
                             <td
                               style={{
@@ -907,7 +872,6 @@ const Recipe = () => {
                               {((nutritionData.perServing.carbs/275)*100).toFixed(0)} %
                             </td>
                           </tr>
-                          {/* Dietary Fiber */}
                           <tr>
                             <td style={{ padding: '2px 6px 2px 30px', color: '#222' }}>
                               Dietary Fiber {nutritionData.perServing.fiber ? nutritionData.perServing.fiber.toFixed(1) : 0} g
@@ -916,7 +880,6 @@ const Recipe = () => {
                               {((nutritionData.perServing.fiber/28)*100).toFixed(0)} %
                             </td>
                           </tr>
-                          {/* Sugars */}
                           <tr>
                             <td style={{ padding: '2px 6px 2px 30px', color: '#222' }}>
                               Sugars {nutritionData.perServing.sugars ? nutritionData.perServing.sugars.toFixed(1) : 0} g
@@ -925,13 +888,11 @@ const Recipe = () => {
                               26 %
                             </td>
                           </tr>
-                          {/* Section divider */}
                           <tr>
                             <td colSpan={2}>
                               <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
                             </td>
                           </tr>
-                          {/* Protein */}
                           <tr>
                             <td style={{ fontWeight: 700, padding: '4px 6px 6px 6px' }}>
                               Protein {nutritionData.perServing.protein.toFixed(1)} g
@@ -972,7 +933,7 @@ const Recipe = () => {
       <RecipeDialog
         open={addOpen}
         onClose={handleAddClose}
-        form={addForm}
+        form={defaultForm}
         onSubmit={handleAddSubmit}
         isLoading={isAdding}
         mode="add"
@@ -993,7 +954,7 @@ const Recipe = () => {
         open={!!viewId}
         onClose={() => setViewId(null)}
         isLoading={isViewLoading}
-        data={viewData}
+        data={viewRecipeData?.data}
       />
 
       <ConfirmDialog

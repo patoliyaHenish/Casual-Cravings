@@ -16,7 +16,6 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
     fetchVideoTitle();
   }, [data?.video_url]);
 
-  // Parse keywords if they come as a string
   const parseKeywords = (keywords) => {
     if (!keywords) return [];
     if (Array.isArray(keywords)) return keywords;
@@ -58,7 +57,6 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
               <div><strong>Sub Category:</strong> {data.sub_category_name}</div>
             )}
             
-            {/* Keywords Section */}
             <div>
               <strong>Keywords:</strong>
               {keywords && keywords.length > 0 ? (

@@ -25,5 +25,5 @@ export const getUserByEmailAndResetToken = `
 `;
 
 export const getUserProfileByEmail = `
-    SELECT name, email, profile_picture, bio, role FROM users WHERE email = $1
+    SELECT name, email, profile_picture, bio, role, password FROM users WHERE email = $1
 `;

@@ -295,7 +295,7 @@ const RecipeDialog = ({
             finalImageFile = null;
           }
           else if (imageFile) {
-            // No additional action needed
+            // Empty block
           }
           else if (imagePreview) {
             finalImageUrl = imagePreview;
@@ -472,7 +472,6 @@ const RecipeDialog = ({
                   Add Keyword
                 </Button>
                 
-                {/* Keyword Suggestions */}
                 {keywords.length > 0 && (
                   <div className="mt-3">
                     <h5 className="text-sm font-medium text-gray-700 mb-2">Popular Keywords:</h5>

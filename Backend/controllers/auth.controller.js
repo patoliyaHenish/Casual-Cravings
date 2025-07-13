@@ -299,7 +299,8 @@ export const myProfile = async (req, res) => {
                 email: user.email,
                 profile_picture: user.profile_picture,
                 bio: user.bio,
-                role: user.role
+                role: user.role,
+                password: user.password
             }
         });
     } catch (error) {
@@ -371,7 +372,8 @@ export const updateProfile = async (req, res) => {
                 email: updatedUser.email,
                 profile_picture: updatedUser.profile_picture,
                 bio: updatedUser.bio,
-                role: updatedUser.role
+                role: updatedUser.role,
+                password: updatedUser.password
             }
         });
     } catch (error) {
