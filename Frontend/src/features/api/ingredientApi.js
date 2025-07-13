@@ -18,15 +18,18 @@ export const ingredientApi = createApi({
   tagTypes: ['Ingredient', 'RecipeIngredient'],
   endpoints: (builder) => ({
     searchIngredients: builder.query({
-      query: (query) => ({
+      query: ({ query, exclude }) => ({
         url: '/search',
-        params: { query },
+        params: { query, ...(exclude && { exclude }) },
       }),
       providesTags: ['Ingredient'],
     }),
 
     getAllIngredients: builder.query({
-      query: () => '/all',
+      query: (exclude) => ({
+        url: '/all',
+        params: { ...(exclude && { exclude }) },
+      }),
       providesTags: ['Ingredient'],
     }),
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip } from '@mui/material';
 import { getYouTubeThumbnail, getYouTubeVideoTitle } from '../../../utils/helper';
 import { formatFraction } from '../../../components/IngredientInput';
 
@@ -15,6 +15,19 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
     };
     fetchVideoTitle();
   }, [data?.video_url]);
+
+  // Parse keywords if they come as a string
+  const parseKeywords = (keywords) => {
+    if (!keywords) return [];
+    if (Array.isArray(keywords)) return keywords;
+    try {
+      return JSON.parse(keywords);
+    } catch {
+      return [];
+    }
+  };
+
+  const keywords = parseKeywords(data?.keywords);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -44,6 +57,28 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
             {data.sub_category_name && (
               <div><strong>Sub Category:</strong> {data.sub_category_name}</div>
             )}
+            
+            {/* Keywords Section */}
+            <div>
+              <strong>Keywords:</strong>
+              {keywords && keywords.length > 0 ? (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {keywords.map((keyword, index) => (
+                    <Chip
+                      key={index}
+                      label={keyword}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      className="text-xs"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <span className="text-gray-500 ml-2">No keywords available</span>
+              )}
+            </div>
+            
             <div>
               <strong>Video URL:</strong>{' '}
               <a

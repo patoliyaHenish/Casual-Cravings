@@ -10,9 +10,11 @@ import {
   MenuItem,
   InputAdornment,
   IconButton,
+  Chip,
 } from '@mui/material';
 import { useGetRecipeCategoriesQuery } from '../../../features/api/categoryApi';
 import { useGetAllRecipeSubCategorieDetailsQuery } from '../../../features/api/subCategoryApi';
+import { useGetMostUsedKeywordsQuery } from '../../../features/api/recipeApi';
 import * as Yup from 'yup';
 import { Add, Remove, Edit, Save, Cancel } from '@mui/icons-material';
 import { Formik, Form } from 'formik';
@@ -130,13 +132,21 @@ const AddRecipeSchema = Yup.object().shape({
     return isNaN(num) ? null : num;
   }),
   recipe_instructions: Yup.array().min(1, 'At least one instruction').required(),
+  keywords: Yup.array().of(Yup.string().trim().min(1, 'Keyword cannot be empty')).nullable(),
   ingredients: Yup.array().of(
-    Yup.object().shape({
-      ingredient_id: Yup.number().required(),
-      ingredient_name: Yup.string().required(),
-      quantity: Yup.number().required().min(0.1),
-      unit: Yup.string().required(),
-    })
+    Yup.lazy((val) =>
+      val && val.isFreeText
+        ? Yup.object().shape({
+            isFreeText: Yup.boolean().oneOf([true]),
+            freeText: Yup.string().required('Ingredient text is required'),
+          })
+        : Yup.object().shape({
+            ingredient_id: Yup.number().required(),
+            ingredient_name: Yup.string().required(),
+            quantity: Yup.number().required().min(0.1),
+            unit: Yup.string().required(),
+          })
+    )
   ),
   video_url: Yup.string()
     .url('Enter a valid URL')
@@ -161,6 +171,7 @@ const RecipeDialog = ({
   mode = 'add',
 }) => {
   const [newInstruction, setNewInstruction] = useState('');
+  const [newKeyword, setNewKeyword] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [imageRemoved, setImageRemoved] = useState(false);
@@ -172,9 +183,11 @@ const RecipeDialog = ({
 
   const { data: categoriesData } = useGetRecipeCategoriesQuery({ page: 1, limit: 100 });
   const { data: subCategoriesData } = useGetAllRecipeSubCategorieDetailsQuery({ page: 1, limit: 100 });
+  const { data: mostUsedKeywords } = useGetMostUsedKeywordsQuery({ page: 1, limit: 100 });
 
   const categories = categoriesData?.data || [];
   const subCategories = subCategoriesData?.data || [];
+  const keywords = mostUsedKeywords?.data || [];
 
   const isYouTubeThumbnail = (url) => {
     if (!url) return false;
@@ -421,6 +434,98 @@ const RecipeDialog = ({
                   },
                 }}
               />
+              <div className="mb-4">
+                <TextField
+                  label="Add Keyword"
+                  value={newKeyword}
+                  onChange={(e) => setNewKeyword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newKeyword.trim()) {
+                      e.preventDefault();
+                      setFieldValue('keywords', [
+                        ...(values.keywords || []),
+                        newKeyword.trim(),
+                      ]);
+                      setNewKeyword('');
+                    }
+                  }}
+                  fullWidth
+                  margin="normal"
+                  disabled={isLoading}
+                  placeholder="Type a keyword and press Enter"
+                />
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  className="mt-2 mb-2"
+                  disabled={!newKeyword.trim() || isLoading}
+                  onClick={() => {
+                    if (newKeyword.trim()) {
+                      setFieldValue('keywords', [
+                        ...(values.keywords || []),
+                        newKeyword.trim(),
+                      ]);
+                      setNewKeyword('');
+                    }
+                  }}
+                >
+                  Add Keyword
+                </Button>
+                
+                {/* Keyword Suggestions */}
+                {keywords.length > 0 && (
+                  <div className="mt-3">
+                    <h5 className="text-sm font-medium text-gray-700 mb-2">Popular Keywords:</h5>
+                    <div className="flex flex-wrap gap-1">
+                      {keywords.slice(0, 10).map((keywordData, index) => (
+                        <Chip
+                          key={index}
+                          label={`${keywordData.keyword} (${keywordData.usage_count})`}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          onClick={() => {
+                            if (!values.keywords?.includes(keywordData.keyword)) {
+                              setFieldValue('keywords', [
+                                ...(values.keywords || []),
+                                keywordData.keyword,
+                              ]);
+                            }
+                          }}
+                          className="cursor-pointer hover:bg-blue-50"
+                          disabled={values.keywords?.includes(keywordData.keyword)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {(values.keywords || []).length > 0 && (
+                <div className="mb-4">
+                  <h4 className="font-semibold mb-2">Keywords:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {(values.keywords || []).map((keyword, index) => (
+                      <div
+                        key={index}
+                        className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center gap-2"
+                      >
+                        <span>{keyword}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newKeywords = values.keywords.filter((_, i) => i !== index);
+                            setFieldValue('keywords', newKeywords);
+                          }}
+                          className="text-blue-600 hover:text-blue-800"
+                          disabled={isLoading}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <TextField
                 select
                 label="Category"
@@ -621,7 +726,10 @@ const RecipeDialog = ({
                   values.recipe_instructions.length === 0 ||
                   !values.video_url ||
                   !values.ingredients ||
-                  values.ingredients.length === 0
+                  values.ingredients.filter(
+                    ing => (ing.isFreeText && ing.freeText?.trim()) ||
+                           (!ing.isFreeText && ing.ingredient_id && ing.ingredient_name && ing.quantity && ing.unit)
+                  ).length === 0
                 }
                 startIcon={isLoading && <CircularProgress size={20} />}
               >

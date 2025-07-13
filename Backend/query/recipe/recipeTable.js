@@ -12,6 +12,7 @@ export const createRecipeTable = `
         cook_time INT NOT NULL,
         serving_size INT NOT NULL,
         recipe_instructions TEXT[] DEFAULT '{}',
+        keywords TEXT[] DEFAULT '{}',
         added_by_user BOOLEAN DEFAULT FALSE,
         added_by_admin BOOLEAN DEFAULT FALSE,
         admin_approved_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (admin_approved_status IN ('pending', 'approved', 'rejected')),

@@ -83,6 +83,12 @@ export const recipeApi = createApi({
             }),
             invalidatesTags: ["Refetch_Recipe"],
         }),
+        getMostUsedKeywords: builder.query({
+            query: () => ({
+                url: "/get-most-used-keywords",
+                method: "GET",
+            }),
+        }),
     })
 });
 
@@ -94,4 +100,5 @@ export const {
     useUpdateRecipeByAdminMutation,
     useUpdateRecipeAdminApprovedStatusMutation,
     useUpdateRecipePublicApprovedStatusMutation,
+    useGetMostUsedKeywordsQuery,
 } = recipeApi;

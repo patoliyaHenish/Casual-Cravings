@@ -5,13 +5,17 @@ import {
     getIngredientByIdQuery,
     getIngredientByNameQuery,
     searchIngredientsQuery,
+    searchIngredientsExcludingQuery,
     getAllIngredientsQuery,
+    getAllIngredientsExcludingQuery
+} from "../query/ingredients/ingredient.js";
+import {
     insertRecipeIngredientQuery,
     getRecipeIngredientsQuery,
     deleteRecipeIngredientsQuery,
     updateRecipeIngredientQuery,
     deleteRecipeIngredientQuery
-} from "../query/ingredients/ingredientTable.js";
+} from "../query/recipe ingredient/recipeIngredient.js";
 
 export const createIngredient = async (req, res) => {
     try {
@@ -42,7 +46,7 @@ export const createIngredient = async (req, res) => {
 
 export const searchIngredients = async (req, res) => {
     try {
-        const { query = '' } = req.query;
+        const { query = '', exclude = '' } = req.query;
 
         if (!query || query.trim().length === 0) {
             return res.status(200).json({
@@ -51,7 +55,17 @@ export const searchIngredients = async (req, res) => {
             });
         }
 
-        const result = await pool.query(searchIngredientsQuery, [`%${query.trim()}%`]);
+        let result;
+        if (exclude && exclude.trim()) {
+            const excludeIds = exclude.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            if (excludeIds.length > 0) {
+                result = await pool.query(searchIngredientsExcludingQuery, [`%${query.trim()}%`, excludeIds]);
+            } else {
+                result = await pool.query(searchIngredientsQuery, [`%${query.trim()}%`]);
+            }
+        } else {
+            result = await pool.query(searchIngredientsQuery, [`%${query.trim()}%`]);
+        }
 
         return res.status(200).json({
             success: true,
@@ -64,7 +78,19 @@ export const searchIngredients = async (req, res) => {
 
 export const getAllIngredients = async (req, res) => {
     try {
-        const result = await pool.query(getAllIngredientsQuery);
+        const { exclude = '' } = req.query;
+
+        let result;
+        if (exclude && exclude.trim()) {
+            const excludeIds = exclude.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            if (excludeIds.length > 0) {
+                result = await pool.query(getAllIngredientsExcludingQuery, [excludeIds]);
+            } else {
+                result = await pool.query(getAllIngredientsQuery);
+            }
+        } else {
+            result = await pool.query(getAllIngredientsQuery);
+        }
 
         return res.status(200).json({
             success: true,

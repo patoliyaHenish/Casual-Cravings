@@ -26,16 +26,16 @@ import { useRef } from 'react';
 
 const Recipe = () => {
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1); 
+  const [page, setPage] = useState(1);  
   const [limit, setLimit] = useState(10);
   const [deleteId, setDeleteId] = useState(null);
   const [editId, setEditId] = useState(null);
   const [viewId, setViewId] = useState(null);
   const [viewData, setViewData] = useState(null);
   const [isViewLoading, setIsViewLoading] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', description: '', prep_time: '', cook_time: '', serving_size: '', ingredients_id: [], recipe_instructions: [] });
+  const [editForm, setEditForm] = useState({ title: '', description: '', prep_time: '', cook_time: '', serving_size: '', ingredients_id: [], recipe_instructions: [], keywords: [] });
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ title: '', description: '', prep_time: '', cook_time: '', serving_size: '', ingredients_id: [], recipe_instructions: [] });
+  const [addForm, setAddForm] = useState({ title: '', description: '', prep_time: '', cook_time: '', serving_size: '', ingredients_id: [], recipe_instructions: [], keywords: [] });
   const [nutritionModalOpen, setNutritionModalOpen] = useState(false);
   const [nutritionLoading, setNutritionLoading] = useState(false);
   const [nutritionData, setNutritionData] = useState(null);
@@ -341,6 +341,7 @@ const Recipe = () => {
         recipe_instructions: Array.isArray(r.recipe_instructions)
           ? r.recipe_instructions.map(i => typeof i === 'string' ? i : i.instruction_text || '')
           : [],
+        keywords: Array.isArray(r.keywords) ? r.keywords : [],
         video_url: r.video_url || '',
         image_url: r.image_url || '',
       });
@@ -360,6 +361,7 @@ const Recipe = () => {
       sub_category_id: null,
       ingredients: [],
       recipe_instructions: [],
+      keywords: [],
       video_url: '',
       image_url: '',
     });
@@ -371,9 +373,13 @@ const Recipe = () => {
 
     formData.append('ingredients', JSON.stringify(values.ingredients));
     formData.append('recipe_instructions', JSON.stringify(values.recipe_instructions));
+    // Fix: append keywords as array
+    (values.keywords || []).forEach((kw) => {
+      formData.append('keywords[]', kw);
+    });
 
     Object.entries(values).forEach(([key, value]) => {
-      if (!['ingredients', 'recipe_instructions'].includes(key)) {
+      if (!['ingredients', 'recipe_instructions', 'keywords'].includes(key)) {
         if (key === 'sub_category_id') {
           const numValue = Number(value);
           formData.append(key, isNaN(numValue) || numValue === 0 ? null : numValue);
@@ -415,8 +421,12 @@ const Recipe = () => {
       const formData = new FormData();
       formData.append('ingredients', JSON.stringify(values.ingredients));
       formData.append('recipe_instructions', JSON.stringify(values.recipe_instructions));
+      // Fix: append keywords as array
+      (values.keywords || []).forEach((kw) => {
+        formData.append('keywords[]', kw);
+      });
       Object.entries(values).forEach(([key, value]) => {
-        if (!['ingredients', 'recipe_instructions'].includes(key)) {
+        if (!['ingredients', 'recipe_instructions', 'keywords'].includes(key)) {
           if (key === 'sub_category_id') {
             const numValue = Number(value);
             formData.append(key, isNaN(numValue) || numValue === 0 ? null : numValue);
@@ -585,8 +595,8 @@ const Recipe = () => {
         <SearchBar
           value={search}
           onChange={handleSearchChange}
-            placeholder="Search by title..."
-            label="Search by title"
+            placeholder="Search by title or keywords..."
+            label="Search recipes"
           />
           <button
             className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition"
@@ -671,6 +681,7 @@ const Recipe = () => {
                     setAddedByAdmin('');
                     setAdminApprovedStatus('');
                     setPublicApproved('');
+                    setSearch('');
                     setShowFilters(false);
                     setPage(1);
                   }}
