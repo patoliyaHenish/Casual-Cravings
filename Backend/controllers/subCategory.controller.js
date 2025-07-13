@@ -69,11 +69,9 @@ export const updateRecipeSubCategory = async (req, res) => {
     let imagePath = null;
     try {
         const { subCategoryId, categoryId, name, description } = req.body;
-        console.log("Received data:", req.body);
 
         const parsedCategoryId = parseInt(categoryId, 10);
         const parsedSubCategoryId = parseInt(subCategoryId, 10);
-        console.log("Parsed IDs:", { parsedCategoryId, parsedSubCategoryId });
 
         if (!parsedSubCategoryId || isNaN(parsedSubCategoryId)) {
             return handleValidationError(res, "Sub-category ID must be a valid integer");

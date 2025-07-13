@@ -5,6 +5,7 @@ import { checkRecipeSubCategoryExistsQuery, checkSubCategoryExistsQuery, checkSu
 import { getYouTubeThumbnail, safeDeleteLocalFile, uploadImageAndCleanup } from "../utils/helper.js";
 import { checkRecipeCategoryExistsByIdQuery } from "../query/recipe category/recipeCategory.js";
 import { insertRecipeInstructionQuery, getRecipeInstructionsByRecipeIdQuery } from "../query/recipe instruction/recipeInstruction.js";
+import { insertRecipeIngredientQuery, deleteRecipeIngredientsQuery, getRecipeIngredientsQuery } from "../query/ingredients/ingredientTable.js";
 import { uploadToClodinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 
 export const createRecipeByAdmin = async (req, res) => {
@@ -20,13 +21,15 @@ export const createRecipeByAdmin = async (req, res) => {
             prep_time,
             cook_time,
             serving_size,
-            recipe_instructions
+            recipe_instructions,
+            ingredients
         } = req.body;
 
         const user_id = req.user.userId;
 
         let final_image_url = image_url || null;
         let parsed_recipe_instructions = recipe_instructions;
+        let parsed_ingredients = ingredients;
 
         try {
             if (typeof recipe_instructions === "string") {
@@ -34,6 +37,14 @@ export const createRecipeByAdmin = async (req, res) => {
             }
         } catch (error) {
             return handleValidationError(res, "Invalid JSON format for instructions");
+        }
+
+        try {
+            if (typeof ingredients === "string") {
+                parsed_ingredients = JSON.parse(ingredients);
+            }
+        } catch (error) {
+            return handleValidationError(res, "Invalid JSON format for ingredients");
         }
 
         if (category_id) {
@@ -71,7 +82,6 @@ export const createRecipeByAdmin = async (req, res) => {
             }
         }
 
-        // Handle image logic: if no image uploaded, try to get YouTube thumbnail
         if (!req.files || !req.files.recipeImage || req.files.recipeImage.length === 0) {
             if (video_url) {
                 const thumbnailUrl = getYouTubeThumbnail(video_url);
@@ -108,7 +118,6 @@ export const createRecipeByAdmin = async (req, res) => {
             return handleValidationError(res, "Each recipe instruction must be a non-empty string");
         }
 
-        // Upload image if provided
         if (req.files && req.files.recipeImage && req.files.recipeImage.length > 0) {
             imagePath = req.files.recipeImage[0].path;
             final_image_url = await uploadImageAndCleanup(imagePath, 'recipe_images', uploadToClodinary);
@@ -131,7 +140,8 @@ export const createRecipeByAdmin = async (req, res) => {
                 parsed_serving_size,
                 parsed_recipe_instructions,
                 'approved',
-                true
+                true,
+                false
             ]
         );
 
@@ -154,6 +164,20 @@ export const createRecipeByAdmin = async (req, res) => {
             updateRecipeInstructionsQuery,
             [instructionIds, recipe.recipe_id]
         );
+
+        if (parsed_ingredients && Array.isArray(parsed_ingredients) && parsed_ingredients.length > 0) {
+            for (const ingredient of parsed_ingredients) {
+                if (ingredient.ingredient_id && ingredient.quantity && ingredient.unit) {
+                    await pool.query(insertRecipeIngredientQuery, [
+                        recipe.recipe_id,
+                        ingredient.ingredient_id,
+                        ingredient.quantity,
+                        ingredient.quantity_display || ingredient.quantity,
+                        ingredient.unit
+                    ]);
+                }
+            }
+        }
 
         const updatedRecipe = await pool.query(
             selectRecipeByIdQuery,
@@ -258,6 +282,14 @@ export const getRecipeByIdForAdmin = async (req, res) => {
         const instructionsResult = await pool.query(getRecipeInstructionsByRecipeIdQuery, [id]);
         recipe.recipe_instructions = instructionsResult.rows;
 
+        const ingredientsResult = await pool.query(getRecipeIngredientsQuery, [id]);
+        recipe.ingredients = ingredientsResult.rows.map(row => ({
+            ingredient_id: row.ingredient_id,
+            ingredient_name: row.ingredient_name,
+            quantity: row.quantity,
+            unit: row.unit
+        }));
+
         return res.status(200).json({
             success: true,
             data: recipe
@@ -318,20 +350,24 @@ export const updateRecipeByAdmin = async (req, res) => {
             prep_time = existingRecipe.prep_time,
             cook_time = existingRecipe.cook_time,
             serving_size = existingRecipe.serving_size,
-            recipe_instructions = existingRecipe.recipe_instructions
+            recipe_instructions = existingRecipe.recipe_instructions,
+            ingredients
         } = req.body;
         try {
             if (typeof recipe_instructions === "string") recipe_instructions = JSON.parse(recipe_instructions);
         } catch (error) {
             return handleValidationError(res, "Invalid JSON format for instructions");
         }
+
+        try {
+            if (typeof ingredients === "string") ingredients = JSON.parse(ingredients);
+        } catch (error) {
+            return handleValidationError(res, "Invalid JSON format for ingredients");
+        }
         let final_image_url = image_url || existingRecipe.image_url;
         
-        // Handle image upload or removal
         if (req.files && req.files.recipeImage && req.files.recipeImage.length > 0) {
-            // New image uploaded
             imagePath = req.files.recipeImage[0].path;
-            // Delete existing Cloudinary image if it exists
             if (existingRecipe.image_url && existingRecipe.image_url.includes("res.cloudinary.com")) {
                 const urlParts = existingRecipe.image_url.split("/");
                 const publicIdWithExt = urlParts.slice(-2).join("/").split(".")[0];
@@ -339,16 +375,12 @@ export const updateRecipeByAdmin = async (req, res) => {
             }
             final_image_url = await uploadImageAndCleanup(imagePath, 'recipe_images', uploadToClodinary);
         } else {
-            // No new image uploaded
             if (image_url === '' || image_url === null) {
-                // Image was removed by user
                 if (existingRecipe.image_url && existingRecipe.image_url.includes("res.cloudinary.com")) {
-                    // Delete existing Cloudinary image
                     const urlParts = existingRecipe.image_url.split("/");
                     const publicIdWithExt = urlParts.slice(-2).join("/").split(".")[0];
                     await deleteFromCloudinary(publicIdWithExt);
                 }
-                // Try to get YouTube thumbnail as fallback
                 if (video_url) {
                     const thumbnailUrl = getYouTubeThumbnail(video_url);
                     if (thumbnailUrl) {
@@ -377,6 +409,7 @@ export const updateRecipeByAdmin = async (req, res) => {
                 recipe_instructions,
                 'approved',
                 true,
+                false,
                 id
             ]
         );
@@ -392,6 +425,25 @@ export const updateRecipeByAdmin = async (req, res) => {
                 );
             }
         }
+
+        if (ingredients !== undefined) {
+            await pool.query(deleteRecipeIngredientsQuery, [id]);
+            
+            if (Array.isArray(ingredients) && ingredients.length > 0) {
+                for (const ingredient of ingredients) {
+                    if (ingredient.ingredient_id && ingredient.quantity && ingredient.unit) {
+                        await pool.query(insertRecipeIngredientQuery, [
+                            id,
+                            ingredient.ingredient_id,
+                            ingredient.quantity,
+                            ingredient.quantity_display || ingredient.quantity,
+                            ingredient.unit
+                        ]);
+                    }
+                }
+            }
+        }
+
         const updatedRecipe = updateResult.rows[0];
         return res.status(200).json({
             success: true,
@@ -423,9 +475,12 @@ export const updateRecipeAdminApprovedStatus = async (req, res) => {
             return handleNotFoundError(res, "Recipe not found");
         }
 
+        const currentRecipe = recipeResult.rows[0];
+        const public_approved = admin_approved_status === 'approved' ? currentRecipe.public_approved : false;
+        
         const updateResult = await pool.query(
-            'UPDATE recipe SET admin_approved_status = $1 WHERE recipe_id = $2 RETURNING *',
-            [admin_approved_status, id]
+            'UPDATE recipe SET admin_approved_status = $1, public_approved = $2 WHERE recipe_id = $3 RETURNING *',
+            [admin_approved_status, public_approved, id]
         );
 
         if (updateResult.rowCount === 0) {

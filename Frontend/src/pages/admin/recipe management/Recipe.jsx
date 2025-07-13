@@ -37,12 +37,11 @@ const Recipe = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({ title: '', description: '', prep_time: '', cook_time: '', serving_size: '', ingredients_id: [], recipe_instructions: [] });
   const [nutritionModalOpen, setNutritionModalOpen] = useState(false);
-  const [nutritionRecipe, setNutritionRecipe] = useState(null);
   const [nutritionLoading, setNutritionLoading] = useState(false);
   const [nutritionData, setNutritionData] = useState(null);
+  const [nutritionRecipeId, setNutritionRecipeId] = useState(null);
   const usdaApiKey = import.meta.env.VITE_USDA_FOOD_NUTRI_API;
 
-  // Filter state
   const [categoryName, setCategoryName] = useState('');
   const [subCategoryName, setSubCategoryName] = useState('');
   const [addedByUser, setAddedByUser] = useState('');
@@ -52,7 +51,6 @@ const Recipe = () => {
   const [showFilters, setShowFilters] = useState(false);
   const filterRef = useRef();
 
-  // Utility: Singularize simple plurals
   function singularize(word) {
     if (word.endsWith('es')) return word.slice(0, -2);
     if (word.endsWith('s')) return word.slice(0, -1);
@@ -62,15 +60,15 @@ const Recipe = () => {
   async function fetchUSDAIngredientNutrition(ingredient, qty, unit) {
     let searchAttempts = [];
     let searchNames = [];
-    // 1. Clean up ingredient name
     let cleaned = ingredient.toLowerCase().replace(/[^a-zA-Z ]/g, ' ').replace(/\b(fresh|chopped|minced|sliced|diced|large|small|medium|extra|organic|raw|cooked|boiled|baked|grilled|roasted|peeled|seeded|boneless|skinless|pieces|cups|tablespoons|teaspoons|tbsp|tsp|cup|slice|can|packet|stick|clove|pinch|lb|oz|g|kg|ml|l)\b/g, '').replace(/\s+/g, ' ').trim();
     if (!cleaned) cleaned = ingredient;
     searchNames.push(cleaned);
-    // 2. Try original cleaned name
+    if (!usdaApiKey) {
+      return { notFound: true, name: ingredient, searchAttempts, apiError: true, apiKeyMissing: true };
+    }
     let searchRes = await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${usdaApiKey}&query=${encodeURIComponent(cleaned)}&pageSize=1`);
     let searchData = await searchRes.json();
     searchAttempts.push({ tried: cleaned, found: !!(searchData.foods && searchData.foods[0]) });
-    // 3. If not found, try first word
     if (!searchData.foods || !searchData.foods[0]) {
       let firstWord = cleaned.split(' ')[0];
       if (firstWord && firstWord !== cleaned) {
@@ -80,7 +78,6 @@ const Recipe = () => {
         searchAttempts.push({ tried: firstWord, found: !!(searchData.foods && searchData.foods[0]) });
       }
     }
-    // 4. If still not found, try singular
     if (!searchData.foods || !searchData.foods[0]) {
       let singular = singularize(cleaned);
       if (singular && singular !== cleaned) {
@@ -99,87 +96,153 @@ const Recipe = () => {
     } catch (e) {
       return { notFound: true, name: ingredient, searchAttempts, apiError: true };
     }
-    const nutrients = { calories: 0, fat: 0, carbs: 0, protein: 0 };
+    // Extract all needed nutrients
+    const nutrients = {
+      calories: 0,
+      fat: 0,
+      satFat: 0,
+      cholesterol: 0,
+      sodium: 0,
+      carbs: 0,
+      fiber: 0,
+      sugars: 0,
+      protein: 0
+    };
     foodData.foodNutrients.forEach(n => {
-      if (n.nutrientName === 'Energy' && n.unitName === 'KCAL') nutrients.calories = n.value;
-      if (n.nutrientName === 'Total lipid (fat)') nutrients.fat = n.value;
-      if (n.nutrientName === 'Carbohydrate, by difference') nutrients.carbs = n.value;
-      if (n.nutrientName === 'Protein') nutrients.protein = n.value;
+      const name = n.nutrient?.name?.toLowerCase();
+      const unitName = n.nutrient?.unitName?.toLowerCase();
+      if (name === 'energy' && (unitName === 'kcal')) nutrients.calories = n.amount;
+      if (name === 'energy' && unitName === 'kj' && !nutrients.calories) nutrients.calories = n.amount * 0.239006;
+      if (name === 'total lipid (fat)') nutrients.fat = n.amount;
+      if (name === 'fatty acids, total saturated') nutrients.satFat = n.amount;
+      if (name === 'cholesterol') nutrients.cholesterol = n.amount;
+      if (name === 'sodium, na') nutrients.sodium = n.amount;
+      if (name === 'carbohydrate, by difference') nutrients.carbs = n.amount;
+      if (name === 'fiber, total dietary') nutrients.fiber = n.amount;
+      if (name === 'sugars, total including nlea') nutrients.sugars = n.amount;
+      if (name === 'protein') nutrients.protein = n.amount;
     });
-    // Default to 100g if qty/unit missing
+    // Unit conversion to grams/ml for USDA API
+    const unitToGram = {
+      g: 1,
+      kg: 1000,
+      mg: 0.001,
+      lb: 453.592,
+      oz: 28.3495,
+      ml: 1, // for water-like liquids
+      l: 1000,
+      tbsp: 15,
+      tsp: 5,
+      cup: 240,
+      piece: 50, // rough average, can be improved
+      slice: 30, // rough average
+      clove: 5, // garlic clove
+      pinch: 0.36, // 1/8 tsp
+      dash: 0.6, // 1/12 tsp
+      ounce: 28.3495,
+      can: 400 // average can size in grams
+    };
     let factor = 1;
     if (!qty || isNaN(qty) || qty <= 0) { qty = 100; unit = 'g'; }
     if (!unit) unit = 'g';
-    if (unit === 'g' || unit === 'gram' || unit === 'grams') factor = qty / 100;
-    else if (unit === 'kg') factor = (qty * 1000) / 100;
-    else if (unit === 'mg') factor = (qty / 1000) / 100;
-    else if (unit === 'lb') factor = (qty * 453.592) / 100;
-    else if (unit === 'oz') factor = (qty * 28.3495) / 100;
-    else factor = qty / 100;
+    if (unitToGram[unit]) {
+      factor = (qty * unitToGram[unit]) / 100;
+    } else {
+      factor = qty / 100;
+    }
+    // Multiply all nutrients by factor
+    Object.keys(nutrients).forEach(key => { nutrients[key] = nutrients[key] * factor; });
     return {
-      calories: nutrients.calories * factor,
-      fat: nutrients.fat * factor,
-      carbs: nutrients.carbs * factor,
-      protein: nutrients.protein * factor,
+      ...nutrients,
+      caloriesFromFat: nutrients.fat * 9,
       name: ingredient,
       searched: searchNames,
       notFound: false,
-      searchAttempts
+      searchAttempts,
+      qty,
+      unit
     };
   }
 
-  // Nutrition Info Modal logic
+
+
+  // Cleanup nutrition state when modal is closed
   useEffect(() => {
-    if (nutritionModalOpen && nutritionRecipe) {
+    if (!nutritionModalOpen) {
+      setNutritionRecipeId(null);
+      setNutritionData(null);
+      setNutritionLoading(false);
+    }
+  }, [nutritionModalOpen]);
+
+  const { data: categoriesData } = useGetRecipeCategoriesQuery({ page: 1, limit: 100 });
+  const { data: subCategoriesData } = useGetAllRecipeSubCategorieDetailsQuery({ page: 1, limit: 100 });
+  const categories = categoriesData?.data || [];
+  const subCategories = subCategoriesData?.data || [];
+
+  const { data: nutritionRecipeData, isLoading: isNutritionLoading } = useGetRecipeByIdForAdminQuery(nutritionRecipeId, { skip: !nutritionRecipeId });
+
+  // Nutrition calculation effect - moved after nutritionRecipeData is declared
+  useEffect(() => {
+    if (nutritionModalOpen && nutritionRecipeData?.data) {
       setNutritionLoading(true);
       setNutritionData(null);
       (async () => {
-        const { ingredients_id = [], ingredient_quantity = [], ingredient_unit = [], serving_size = 1 } = nutritionRecipe;
-        let total = { calories: 0, fat: 0, carbs: 0, protein: 0 };
+        const recipe = nutritionRecipeData.data;
+        const { ingredients = [], serving_size = 1, serving_size_display = '' } = recipe;
+        let total = { calories: 0, fat: 0, satFat: 0, cholesterol: 0, sodium: 0, carbs: 0, fiber: 0, sugars: 0, protein: 0 };
         let details = [];
         let notFound = [];
         let apiError = false;
-        for (let idx = 0; idx < ingredients_id.length; idx++) {
-          const ingredient = (typeof ingredients_id[idx] === 'object' && ingredients_id[idx].name) ? ingredients_id[idx].name : String(ingredients_id[idx]);
-          let qty = parseFloat(ingredient_quantity[idx]);
-          let unit = (ingredient_unit[idx] || '').toLowerCase();
+        for (const ingredient of ingredients) {
+          const ingredientName = ingredient.ingredient_name;
+          const qty = parseFloat(ingredient.quantity);
+          const unit = (ingredient.unit || '').toLowerCase();
           try {
-            const nut = await fetchUSDAIngredientNutrition(ingredient, qty, unit);
+            const nut = await fetchUSDAIngredientNutrition(ingredientName, qty, unit);
             if (nut && !nut.notFound) {
               total.calories += nut.calories;
               total.fat += nut.fat;
+              total.satFat += nut.satFat;
+              total.cholesterol += nut.cholesterol;
+              total.sodium += nut.sodium;
               total.carbs += nut.carbs;
+              total.fiber += nut.fiber;
+              total.sugars += nut.sugars;
               total.protein += nut.protein;
               details.push({ ...nut, qty, unit });
             } else {
               notFound.push({ name: nut.name, searchAttempts: nut.searchAttempts, apiError: nut.apiError });
               if (nut.apiError) apiError = true;
             }
-          } catch (e) { notFound.push({ name: ingredient, searchAttempts: [], apiError: true }); apiError = true; }
+          } catch (e) {
+            notFound.push({ name: ingredientName, searchAttempts: [], apiError: true });
+            apiError = true;
+          }
         }
-        const servings = parseFloat(nutritionRecipe.serving_size) || 1;
+        const servings = parseFloat(serving_size) || 1;
         setNutritionData({
           perServing: {
             calories: total.calories / servings,
             fat: total.fat / servings,
+            satFat: total.satFat / servings,
+            cholesterol: total.cholesterol / servings,
+            sodium: total.sodium / servings,
             carbs: total.carbs / servings,
+            fiber: total.fiber / servings,
+            sugars: total.sugars / servings,
             protein: total.protein / servings,
           },
           servings,
           details,
           notFound,
-          apiError
+          apiError,
+          serving_size_display: serving_size_display || ''
         });
         setNutritionLoading(false);
       })();
     }
-  }, [nutritionModalOpen, nutritionRecipe]);
-
-  // Fetch categories and subcategories for dropdowns
-  const { data: categoriesData } = useGetRecipeCategoriesQuery({ page: 1, limit: 100 });
-  const { data: subCategoriesData } = useGetAllRecipeSubCategorieDetailsQuery({ page: 1, limit: 100 });
-  const categories = categoriesData?.data || [];
-  const subCategories = subCategoriesData?.data || [];
+  }, [nutritionModalOpen, nutritionRecipeData]);
 
   const { data, isLoading } = useGetAllRecipesForAdminQuery({
     search,
@@ -274,9 +337,7 @@ const Recipe = () => {
         serving_size: r.serving_size || '',
         category_id: r.category_id || '',
         sub_category_id: r.sub_category_id || null,
-        ingredients_id: r.ingredients_id || [],
-        ingredient_unit: r.ingredient_unit || [],
-        ingredient_quantity: r.ingredient_quantity || [],
+        ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
         recipe_instructions: Array.isArray(r.recipe_instructions)
           ? r.recipe_instructions.map(i => typeof i === 'string' ? i : i.instruction_text || '')
           : [],
@@ -297,7 +358,7 @@ const Recipe = () => {
       serving_size: '',
       category_id: '',
       sub_category_id: null,
-      ingredients_id: [],
+      ingredients: [],
       recipe_instructions: [],
       video_url: '',
       image_url: '',
@@ -308,13 +369,11 @@ const Recipe = () => {
   try {
     const formData = new FormData();
 
-    formData.append('ingredients_id', JSON.stringify(values.ingredients_id));
-    formData.append('ingredient_unit', JSON.stringify(values.ingredient_unit));
-    formData.append('ingredient_quantity', JSON.stringify(values.ingredient_quantity));
+    formData.append('ingredients', JSON.stringify(values.ingredients));
     formData.append('recipe_instructions', JSON.stringify(values.recipe_instructions));
 
     Object.entries(values).forEach(([key, value]) => {
-      if (!['ingredients_id', 'ingredient_unit', 'ingredient_quantity', 'recipe_instructions'].includes(key)) {
+      if (!['ingredients', 'recipe_instructions'].includes(key)) {
         if (key === 'sub_category_id') {
           const numValue = Number(value);
           formData.append(key, isNaN(numValue) || numValue === 0 ? null : numValue);
@@ -354,12 +413,10 @@ const Recipe = () => {
   const handleEditSubmit = async (values, { resetForm }, imageFile) => {
     try {
       const formData = new FormData();
-      formData.append('ingredients_id', JSON.stringify(values.ingredients_id));
-      formData.append('ingredient_unit', JSON.stringify(values.ingredient_unit));
-      formData.append('ingredient_quantity', JSON.stringify(values.ingredient_quantity));
+      formData.append('ingredients', JSON.stringify(values.ingredients));
       formData.append('recipe_instructions', JSON.stringify(values.recipe_instructions));
       Object.entries(values).forEach(([key, value]) => {
-        if (!['ingredients_id', 'ingredient_unit', 'ingredient_quantity', 'recipe_instructions'].includes(key)) {
+        if (!['ingredients', 'recipe_instructions'].includes(key)) {
           if (key === 'sub_category_id') {
             const numValue = Number(value);
             formData.append(key, isNaN(numValue) || numValue === 0 ? null : numValue);
@@ -451,7 +508,6 @@ const Recipe = () => {
       header: 'Public Approved',
       field: 'public_approved',
       render: (row) => {
-        // Only show public approval option if admin has approved
         if (row.admin_approved_status?.toLowerCase() !== 'approved') {
           return (
             <span className="text-gray-400 italic text-sm">
@@ -485,7 +541,10 @@ const Recipe = () => {
       render: (row) => (
         <button
           className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs"
-          onClick={() => { setNutritionRecipe(row); setNutritionModalOpen(true); }}
+          onClick={() => { 
+            setNutritionRecipeId(row.recipe_id); 
+            setNutritionModalOpen(true); 
+          }}
           type="button"
         >
           Nutrition Info
@@ -505,7 +564,6 @@ const Recipe = () => {
     }
   ];
 
-  // Close filter popup when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (filterRef.current && !filterRef.current.contains(event.target)) {
@@ -645,58 +703,257 @@ const Recipe = () => {
         onNextPage={handleNextPage}
         emptyMessage="No recipes found."
       />
-      {/* Nutrition Info Modal placeholder */}
-      {nutritionModalOpen && nutritionRecipe && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-          <div className="bg-white rounded-lg shadow-lg p-6 min-w-[320px] max-w-[90vw] relative">
+      {nutritionModalOpen && nutritionRecipeId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-2 sm:px-0 mt-0 md:mt-12" style={{ backdropFilter: 'blur(6px)', background: 'rgba(0,0,0,0.10)' }}>
+          {/* Overlay to close modal on outside click */}
+          <div
+            className="absolute inset-0 w-full h-full cursor-pointer"
+            style={{ zIndex: 1 }}
+            onClick={() => setNutritionModalOpen(false)}
+          />
+          <div
+            className="bg-white shadow-lg relative w-full max-w-[300px] min-w-0 box-border"
+            style={{
+              width: '100vw',
+              maxWidth: 300,
+              minWidth: 0,
+              border: '2px solid #111',
+              borderRadius: 8,
+              padding: 0,
+              boxSizing: 'border-box',
+              fontFamily: 'Inter, Arial, sans-serif',
+              boxShadow: '0 2px 16px 0 rgba(0,0,0,0.10)',
+              zIndex: 2
+            }}
+            onClick={e => e.stopPropagation()}
+          >
             <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+              className="absolute top-2 right-3 text-gray-700 hover:text-black text-xl font-light"
               onClick={() => setNutritionModalOpen(false)}
               type="button"
+              aria-label="Close"
+              style={{ lineHeight: 1 }}
             >
               &times;
             </button>
-            <h2 className="text-lg font-bold mb-2">Nutrition Info</h2>
-            {nutritionLoading ? (
-              <div className="flex items-center justify-center h-32"><span className="animate-spin mr-2">⏳</span>Loading nutrition...</div>
-            ) : nutritionData ? (
-              <div>
-                {nutritionData.apiError && <div className="text-red-500 mb-2">API/network error. Please check your API key and internet connection.</div>}
-                <div className="mb-2 text-sm text-gray-600">Per serving (based on {nutritionData.servings} servings)</div>
-                <div className="grid grid-cols-2 gap-2 text-base">
-                  <div><span className="font-semibold">Calories:</span> {nutritionData.perServing.calories.toFixed(0)}</div>
-                  <div className="text-right text-xs text-gray-500">{((nutritionData.perServing.calories/2000)*100).toFixed(0)}% DV</div>
-                  <div><span className="font-semibold">Fat:</span> {nutritionData.perServing.fat.toFixed(1)}g</div>
-                  <div className="text-right text-xs text-gray-500">{((nutritionData.perServing.fat/78)*100).toFixed(0)}% DV</div>
-                  <div><span className="font-semibold">Carbs:</span> {nutritionData.perServing.carbs.toFixed(1)}g</div>
-                  <div className="text-right text-xs text-gray-500">{((nutritionData.perServing.carbs/275)*100).toFixed(0)}% DV</div>
-                  <div><span className="font-semibold">Protein:</span> {nutritionData.perServing.protein.toFixed(1)}g</div>
-                  <div className="text-right text-xs text-gray-500">{((nutritionData.perServing.protein/50)*100).toFixed(0)}% DV</div>
-                </div>
-                <div className="mt-4 text-xs text-gray-400">* % Daily Values are based on a 2,000 calorie diet.<br/>Nutrition is estimated from ingredient names and USDA data.</div>
-                <div className="mt-4">
-                  <div className="font-semibold mb-1">Ingredient Details:</div>
-                  <ul className="text-xs text-gray-700 max-h-32 overflow-y-auto">
-                    {nutritionData.details.map((d, i) => (
-                      <li key={i} className="mb-1">{d.qty} {d.unit} <span className="font-semibold">{d.name}</span> (searched: <span className="italic">{d.searched.join(' / ')}</span>) — {d.calories.toFixed(0)} kcal, {d.fat.toFixed(1)}g fat, {d.carbs.toFixed(1)}g carbs, {d.protein.toFixed(1)}g protein
-                        <ul className="ml-2 text-gray-400 text-[10px]">
-                          {d.searchAttempts.map((a, j) => <li key={j}>Tried: {a.tried} {a.found ? '✅' : '❌'}</li>)}
-                        </ul>
-                      </li>
-                    ))}
-                  </ul>
-                  {nutritionData.notFound.length > 0 && (
-                    <div className="mt-2 text-xs text-red-500">No nutrition data found for: {nutritionData.notFound.map(n => n.name).join(', ')}
-                      <ul className="ml-2 text-gray-400 text-[10px]">
-                        {nutritionData.notFound.map((n, i) => n.searchAttempts && n.searchAttempts.map((a, j) => <li key={i + '-' + j}>Tried: {a.tried} {a.found ? '✅' : '❌'}</li>))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
+            <div className="px-3 pt-4 pb-2">
+              <div
+                className="mb-2"
+                style={{
+                  fontSize: '1.05rem',
+                  fontWeight: 400,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  marginBottom: 8
+                }}
+              >
+                NUTRITION INFO
               </div>
-            ) : (
-              <div className="text-red-500">Could not fetch nutrition info for this recipe.</div>
-            )}
+              {/* Serving size and servings per recipe */}
+              {nutritionData ? (
+                 <>
+                    <div className="mb-2" style={{ fontSize: '0.92rem' }}>
+                      <div style={{ fontWeight: 700, display: 'inline' }}>Servings Per Recipe: </div>
+                      <span style={{ fontWeight: 400, color: '#444' }}>
+                        {nutritionData.servings}
+                      </span>
+                    </div>
+                    <div style={{ border: '2px solid #111', borderRadius: 4 }}>
+                      <table style={{ width: '100%', fontSize: '0.92rem', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th
+                              style={{
+                                textAlign: 'left',
+                                padding: '7px 6px 7px 6px',
+                                fontWeight: 700,
+                                borderBottom: '2px solid #111',
+                                textTransform: 'uppercase',
+                                letterSpacing: 1,
+                                fontSize: '0.92rem'
+                              }}
+                            >
+                              AMT. PER SERVING
+                            </th>
+                            <th
+                              style={{
+                                textAlign: 'right',
+                                padding: '7px 6px 7px 6px',
+                                fontWeight: 700,
+                                borderBottom: '2px solid #111',
+                                textTransform: 'uppercase',
+                                letterSpacing: 1,
+                                fontSize: '0.92rem'
+                              }}
+                            >
+                              % DAILY VALUE
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Calories */}
+                          <tr>
+                            <td style={{ fontWeight: 700, padding: '6px 6px 2px 6px', fontSize: '1rem', borderBottom: '1px solid #eee' }}>
+                              Calories: {nutritionData.perServing.calories.toFixed(1)}
+                            </td>
+                            <td style={{ padding: '6px 6px 2px 6px', borderBottom: '1px solid #eee' }}></td>
+                          </tr>
+                          {/* Calories from Fat */}
+                          <tr>
+                            <td style={{ padding: '2px 6px 2px 18px', color: '#222' }}>
+                              Calories from Fat {(nutritionData.perServing.fat * 9).toFixed(0)} g
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '2px 6px 2px 6px' }}>
+                              {((nutritionData.perServing.fat/78)*100).toFixed(0)} %
+                            </td>
+                          </tr>
+                          {/* Section divider */}
+                          <tr>
+                            <td colSpan={2}>
+                              <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
+                            </td>
+                          </tr>
+                          {/* Total Fat (dotted underline) */}
+                          <tr>
+                            <td
+                              style={{
+                                fontWeight: 700,
+                                padding: '4px 6px 2px 18px',
+                                borderBottom: '1px dotted #888'
+                              }}
+                            >
+                              Total Fat {nutritionData.perServing.fat.toFixed(1)} g
+                            </td>
+                            <td
+                              style={{
+                                textAlign: 'right',
+                                padding: '4px 6px 2px 6px',
+                                fontWeight: 400,
+                                borderBottom: '1px dotted #888'
+                              }}
+                            >
+                              {((nutritionData.perServing.fat/78)*100).toFixed(0)} %
+                            </td>
+                          </tr>
+                          {/* Saturated Fat */}
+                          <tr>
+                            <td style={{ padding: '2px 6px 2px 30px', color: '#222' }}>
+                              Saturated Fat {nutritionData.perServing.satFat ? nutritionData.perServing.satFat.toFixed(1) : 0} g
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '2px 6px 2px 6px' }}>
+                              {((nutritionData.perServing.satFat/20)*100).toFixed(0)} %
+                            </td>
+                          </tr>
+                          {/* Section divider */}
+                          <tr>
+                            <td colSpan={2}>
+                              <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
+                            </td>
+                          </tr>
+                          {/* Cholesterol */}
+                          <tr>
+                            <td style={{ fontWeight: 700, padding: '4px 6px 2px 6px' }}>
+                              Cholesterol {nutritionData.perServing.cholesterol ? nutritionData.perServing.cholesterol.toFixed(1) : 0} mg
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '4px 6px 2px 6px' }}>
+                              {((nutritionData.perServing.cholesterol/300)*100).toFixed(0)} %
+                            </td>
+                          </tr>
+                          {/* Sodium */}
+                          <tr>
+                            <td style={{ fontWeight: 700, padding: '2px 6px 2px 6px' }}>
+                              Sodium {nutritionData.perServing.sodium ? nutritionData.perServing.sodium.toFixed(1) : 0} mg
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '2px 6px 2px 6px' }}>
+                              {((nutritionData.perServing.sodium/2300)*100).toFixed(0)} %
+                            </td>
+                          </tr>
+                          {/* Section divider */}
+                          <tr>
+                            <td colSpan={2}>
+                              <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
+                            </td>
+                          </tr>
+                          {/* Total Carbohydrate (dotted underline) */}
+                          <tr>
+                            <td
+                              style={{
+                                fontWeight: 700,
+                                padding: '4px 6px 2px 6px',
+                                borderBottom: '1px dotted #888'
+                              }}
+                            >
+                              Total Carbohydrate {nutritionData.perServing.carbs.toFixed(1)} g
+                            </td>
+                            <td
+                              style={{
+                                textAlign: 'right',
+                                padding: '4px 6px 2px 6px',
+                                fontWeight: 400,
+                                borderBottom: '1px dotted #888'
+                              }}
+                            >
+                              {((nutritionData.perServing.carbs/275)*100).toFixed(0)} %
+                            </td>
+                          </tr>
+                          {/* Dietary Fiber */}
+                          <tr>
+                            <td style={{ padding: '2px 6px 2px 30px', color: '#222' }}>
+                              Dietary Fiber {nutritionData.perServing.fiber ? nutritionData.perServing.fiber.toFixed(1) : 0} g
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '2px 6px 2px 6px' }}>
+                              {((nutritionData.perServing.fiber/28)*100).toFixed(0)} %
+                            </td>
+                          </tr>
+                          {/* Sugars */}
+                          <tr>
+                            <td style={{ padding: '2px 6px 2px 30px', color: '#222' }}>
+                              Sugars {nutritionData.perServing.sugars ? nutritionData.perServing.sugars.toFixed(1) : 0} g
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '2px 6px 2px 6px' }}>
+                              26 %
+                            </td>
+                          </tr>
+                          {/* Section divider */}
+                          <tr>
+                            <td colSpan={2}>
+                              <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
+                            </td>
+                          </tr>
+                          {/* Protein */}
+                          <tr>
+                            <td style={{ fontWeight: 700, padding: '4px 6px 6px 6px' }}>
+                              Protein {nutritionData.perServing.protein.toFixed(1)} g
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '4px 6px 6px 6px' }}>
+                              {((nutritionData.perServing.protein/50)*100).toFixed(0)} %
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                 </>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-32 text-gray-500 text-lg">
+                  <div className="mb-2 flex space-x-1">
+                    <span className="inline-block w-2 h-2 bg-orange-400 rounded-full animate-ellipsis"></span>
+                    <span className="inline-block w-2 h-2 bg-orange-400 rounded-full animate-ellipsis" style={{ animationDelay: '0.2s' }}></span>
+                    <span className="inline-block w-2 h-2 bg-orange-400 rounded-full animate-ellipsis" style={{ animationDelay: '0.4s' }}></span>
+                  </div>
+                  <div>Loading nutrition info...</div>
+                  <style>{`
+                    @keyframes ellipsis {
+                      0% { opacity: 0.2; }
+                      20% { opacity: 1; }
+                      100% { opacity: 0.2; }
+                    }
+                    .animate-ellipsis {
+                      animation: ellipsis 1.2s infinite;
+                    }
+                  `}</style>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

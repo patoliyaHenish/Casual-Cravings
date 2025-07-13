@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
 import { getYouTubeThumbnail, getYouTubeVideoTitle } from '../../../utils/helper';
+import { formatFraction } from '../../../components/IngredientInput';
 
 const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
   const [videoTitle, setVideoTitle] = useState(null);
-  const [ingredientDetails, setIngredientDetails] = useState([]);
 
   useEffect(() => {
     const fetchVideoTitle = async () => {
@@ -15,28 +15,6 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
     };
     fetchVideoTitle();
   }, [data?.video_url]);
-
-  useEffect(() => {
-    const fetchIngredientDetails = async () => {
-      if (data?.ingredients_id?.length > 0 && data?.ingredient_unit?.length > 0 && data?.ingredient_quantity?.length > 0) {
-        try {
-          const details = data.ingredients_id.map((id, index) => ({
-            name: id, // Assuming ingredient name is directly available or needs to be fetched
-            unit: data.ingredient_unit[index] || '',
-            quantity: data.ingredient_quantity[index] || ''
-          }));
-          
-          setIngredientDetails(details);
-        } catch (error) {
-          console.error('Failed to fetch ingredient details:', error);
-          setIngredientDetails([]);
-        }
-      } else {
-        setIngredientDetails([]);
-      }
-    };
-    fetchIngredientDetails();
-  }, [data?.ingredients_id, data?.ingredient_unit, data?.ingredient_quantity]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -91,7 +69,7 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
             
             <div>
               <strong>Ingredients details:</strong>
-              {ingredientDetails.length > 0 ? (
+              {data.ingredients && data.ingredients.length > 0 ? (
                 <TableContainer component={Paper} className="mt-2">
                   <Table size="small">
                     <TableHead>
@@ -102,10 +80,10 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {ingredientDetails.map((ingredient, idx) => (
+                      {data.ingredients.map((ingredient, idx) => (
                         <TableRow key={idx}>
-                          <TableCell>{ingredient.name}</TableCell>
-                          <TableCell>{ingredient.quantity}</TableCell>
+                          <TableCell>{ingredient.ingredient_name}</TableCell>
+                          <TableCell>{formatFraction(ingredient.quantity)}</TableCell>
                           <TableCell>{ingredient.unit}</TableCell>
                         </TableRow>
                       ))}

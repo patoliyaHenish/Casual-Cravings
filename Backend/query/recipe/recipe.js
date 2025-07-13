@@ -1,9 +1,9 @@
 export const insertRecipeQuery = `
     INSERT INTO recipe (
         user_id, category_id, sub_category_id, title, description, video_url, image_url,
-        prep_time, cook_time, serving_size, recipe_instructions, admin_approved_status, added_by_admin
+        prep_time, cook_time, serving_size, recipe_instructions, admin_approved_status, added_by_admin, public_approved
     ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
     ) RETURNING *;
 `;
 
@@ -33,8 +33,9 @@ export const updateRecipeQuery = `
         recipe_instructions = $10,
         admin_approved_status = $11,
         added_by_admin = $12,
+        public_approved = $13,
         updated_at = CURRENT_TIMESTAMP
-    WHERE recipe_id = $13
+    WHERE recipe_id = $14
     RETURNING *;
 `;
 

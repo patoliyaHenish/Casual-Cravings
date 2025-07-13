@@ -4,6 +4,7 @@ import { authApi } from "../features/api/authApi";
 import { categoryApi } from "../features/api/categoryApi";
 import { subCategoryApi } from "../features/api/subCategoryApi";
 import { recipeApi } from "../features/api/recipeApi";
+import { ingredientApi } from "../features/api/ingredientApi";
 
 export const appStore = configureStore({
     reducer: rootReducer,
@@ -12,7 +13,8 @@ export const appStore = configureStore({
             authApi.middleware,
             categoryApi.middleware,
             subCategoryApi.middleware,
-            recipeApi.middleware
+            recipeApi.middleware,
+            ingredientApi.middleware
         )
 });
 

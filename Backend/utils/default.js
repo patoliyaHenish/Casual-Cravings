@@ -11,6 +11,8 @@ import { createCommentTable } from '../query/comment/commentTable.js';
 import { createLikeTable } from '../query/likes/likeTable.js';
 import { createSaveRecipeTable } from '../query/save recipe/saveRecipe.js';
 import { createFollowerTable } from '../query/followers/followersTable.js';
+import { createIngredientTable } from '../query/ingredients/ingredientTable.js';
+import { createRecipeIngredientTable } from '../query/recipe ingredient/recipeIngredientTable.js';
 
 const createRecipeDatabaseIfNotExists = async () => {
     const dbName = process.env.DB_NAME;
@@ -123,6 +125,22 @@ const createFollowerTableIfNotExists = async () => {
     }
 };
 
+const createIngredientTableIfNotExists = async () => {
+    try {
+        await pool.query(createIngredientTable);
+    } catch (error) {
+        console.error('Error creating ingredient table:', error);
+    }
+};
+
+const createRecipeIngredientTableIfNotExists = async () => {
+    try {
+        await pool.query(createRecipeIngredientTable);
+    } catch (error) {
+        console.error('Error creating recipe ingredient table:', error);
+    }
+};
+
 export const executeSetup = async () => {
     await createRecipeDatabaseIfNotExists();
     await createUsersTableIfNotExists();
@@ -135,4 +153,6 @@ export const executeSetup = async () => {
     await createLikeTableIfNotExists();
     await saveRecipeTableIfNotExists();
     await createFollowerTableIfNotExists();
+    await createIngredientTableIfNotExists();
+    await createRecipeIngredientTableIfNotExists();
 };

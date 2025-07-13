@@ -18,6 +18,7 @@ import { Add, Remove, Edit, Save, Cancel } from '@mui/icons-material';
 import { Formik, Form } from 'formik';
 import { isValidYouTubeVideo, getYouTubeThumbnail, getYouTubeVideoTitle } from '../../../utils/helper';
 import FileUploadField from '../../../components/FileUploadField';
+import IngredientInput from '../../../components/IngredientInput';
 
 const InstructionItem = ({ instruction, index, onUpdate, onRemove, disabled }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -129,6 +130,14 @@ const AddRecipeSchema = Yup.object().shape({
     return isNaN(num) ? null : num;
   }),
   recipe_instructions: Yup.array().min(1, 'At least one instruction').required(),
+  ingredients: Yup.array().of(
+    Yup.object().shape({
+      ingredient_id: Yup.number().required(),
+      ingredient_name: Yup.string().required(),
+      quantity: Yup.number().required().min(0.1),
+      unit: Yup.string().required(),
+    })
+  ),
   video_url: Yup.string()
     .url('Enter a valid URL')
     .test(
@@ -244,6 +253,7 @@ const RecipeDialog = ({
         initialValues={{
           ...form,
           sub_category_id: form.sub_category_id || null,
+          ingredients: form.ingredients || [],
         }}
         validationSchema={AddRecipeSchema}
         enableReinitialize
@@ -272,6 +282,7 @@ const RecipeDialog = ({
             finalImageFile = null;
           }
           else if (imageFile) {
+            // No additional action needed
           }
           else if (imagePreview) {
             finalImageUrl = imagePreview;
@@ -521,6 +532,14 @@ const RecipeDialog = ({
                   ))}
                 </div>
               )}
+              
+
+              <IngredientInput
+                value={values.ingredients || []}
+                onChange={(ingredients) => setFieldValue('ingredients', ingredients)}
+                disabled={isLoading}
+                dialogOpen={open}
+              />
               <TextField
                 label={(!videoTitle && !videoThumbnail) ? "Video URL (YouTube)" : ""}
                 name="video_url"
@@ -600,7 +619,9 @@ const RecipeDialog = ({
                   !values.category_id ||
                   (subCategories.filter(sc => sc.category_id === Number(values.category_id)).length > 0 && !values.sub_category_id) ||
                   values.recipe_instructions.length === 0 ||
-                  !values.video_url
+                  !values.video_url ||
+                  !values.ingredients ||
+                  values.ingredients.length === 0
                 }
                 startIcon={isLoading && <CircularProgress size={20} />}
               >

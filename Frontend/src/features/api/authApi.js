@@ -130,16 +130,6 @@ export const authApi = createApi({
                 method: 'PUT',
                 body: inputData,
             }),
-            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
-                try {
-                    const { data } = await queryFulfilled;
-                    if (data?.message) {
-                        console.log('Password changed successfully:', data.message);
-                    }
-                } catch (error) {
-                    console.error('Changing password failed:', error);
-                }
-            },
         })
     })
 })
