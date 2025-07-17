@@ -98,8 +98,6 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
                 {videoTitle && <div><strong>Video Title:</strong> {videoTitle}</div>}
               </div>
             )}
-            <div><strong>Created At:</strong> {data.created_at && new Date(data.created_at).toLocaleDateString()}</div>
-            
             <div>
               <strong>Ingredients details:</strong>
               {data.ingredients && data.ingredients.length > 0 ? (
@@ -138,6 +136,8 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
                 ))}
               </ol>
             </div>
+            
+            <div><strong>Created At:</strong> {data.created_at && new Date(data.created_at).toLocaleDateString()}</div>
             
             <div className="mt-4 pt-4 border-t border-gray-200">
               <strong className="text-gray-700">Approval Information:</strong>

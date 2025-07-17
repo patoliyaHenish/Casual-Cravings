@@ -80,47 +80,48 @@ const DataTable = ({
           </TableBody>
         </Table>
       </TableContainer>
-      
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4">
-        <div className="flex items-center gap-2">
-          <span>Show:</span>
-          <FormControl size="small" sx={{ minWidth: 80 }}>
-            <Select
-              value={limit}
-              onChange={(e) => onLimitChange(e.target.value)}
-              displayEmpty
+      {(onLimitChange && onPrevPage && onNextPage) && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4">
+          <div className="flex items-center gap-2">
+            <span>Show:</span>
+            <FormControl size="small" sx={{ minWidth: 80 }}>
+              <Select
+                value={limit}
+                onChange={(e) => onLimitChange(e.target.value)}
+                displayEmpty
+              >
+                <MenuItem value={5}>5</MenuItem>
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={25}>25</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+                <MenuItem value={100}>100</MenuItem>
+              </Select>
+            </FormControl>
+            <span>entries</span>
+          </div>
+          <div className="flex items-center gap-4 self-center justify-center sm:self-auto sm:justify-start">
+            <Button
+              variant="contained"
+              color="warning"
+              onClick={onPrevPage}
+              disabled={pagination.page === 1}
             >
-              <MenuItem value={5}>5</MenuItem>
-              <MenuItem value={10}>10</MenuItem>
-              <MenuItem value={25}>25</MenuItem>
-              <MenuItem value={50}>50</MenuItem>
-              <MenuItem value={100}>100</MenuItem>
-            </Select>
-          </FormControl>
-          <span>entries</span>
+              Previous
+            </Button>
+            <span>
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <Button
+              variant="contained"
+              color="warning"
+              onClick={onNextPage}
+              disabled={pagination.page === pagination.totalPages}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-4 self-center justify-center sm:self-auto sm:justify-start">
-          <Button
-            variant="contained"
-            color="warning"
-            onClick={onPrevPage}
-            disabled={pagination.page === 1}
-          >
-            Previous
-          </Button>
-          <span>
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
-          <Button
-            variant="contained"
-            color="warning"
-            onClick={onNextPage}
-            disabled={pagination.page === pagination.totalPages}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
+      )}
     </>
   );
 };

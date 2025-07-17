@@ -13,6 +13,7 @@ import { createSaveRecipeTable } from '../query/save recipe/saveRecipe.js';
 import { createFollowerTable } from '../query/followers/followersTable.js';
 import { createIngredientTable } from '../query/ingredients/ingredientTable.js';
 import { createRecipeIngredientTable } from '../query/recipe ingredient/recipeIngredientTable.js';
+import { createBannerTable } from '../query/bannerTable.js';
 
 const createRecipeDatabaseIfNotExists = async () => {
     const dbName = process.env.DB_NAME;
@@ -141,6 +142,14 @@ const createRecipeIngredientTableIfNotExists = async () => {
     }
 };
 
+const createBannerTableIfNotExists = async () => {
+    try {
+        await pool.query(createBannerTable);
+    } catch (error) {
+        console.error('Error creating banner table:', error);
+    }
+};
+
 export const executeSetup = async () => {
     await createRecipeDatabaseIfNotExists();
     await createUsersTableIfNotExists();
@@ -155,4 +164,5 @@ export const executeSetup = async () => {
     await createFollowerTableIfNotExists();
     await createIngredientTableIfNotExists();
     await createRecipeIngredientTableIfNotExists();
+    await createBannerTableIfNotExists();
 };

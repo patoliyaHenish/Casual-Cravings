@@ -8,6 +8,7 @@ import { upload } from '../utils/multer.js';
 import passport from "../utils/passport.js";
 import { setTokenCookie } from '../utils/generateToken.js';
 import dotnenv from 'dotenv';
+import { pool } from '../config/db.js';
 dotnenv.config();
 
 const router = express.Router();

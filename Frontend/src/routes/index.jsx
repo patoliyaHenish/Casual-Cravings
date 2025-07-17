@@ -11,6 +11,7 @@ import UserNotAuthentiCated from "../components/UserNotAuthentiCated";
 import RecipeCategory from "../pages/admin/category management/RecipeCategory";
 import RecipeSubCategory from "../pages/admin/sub-category/RecipeSubCategory";
 import Recipe from "../pages/admin/recipe management/Recipe";
+import BannerManagement from '../pages/admin/banner management/BannerManagement'
 
 export const appRouter = createBrowserRouter([
     {
@@ -66,6 +67,14 @@ export const appRouter = createBrowserRouter([
                 element: (
                     <ProtectedRoute allowedRoles={["admin"]}>
                         <Recipe/>
+                    </ProtectedRoute>
+                )
+            },
+            {
+                path: "/admin/manage-banners",
+                element: (
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                        <BannerManagement />
                     </ProtectedRoute>
                 )
             }

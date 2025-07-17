@@ -2,7 +2,7 @@ import express from 'express';
 import isAuthenticated from '../middlewares/auth.middleware.js';
 import { checkRole, validate } from '../utils/helper.js';
 import { createRecipeValidation } from '../validations/recipeValidation.js';
-import { createRecipeByAdmin, getAllRecipesForAdmin, getRecipeByIdForAdmin, deleteRecipeByAdmin, updateRecipeByAdmin, updateRecipeAdminApprovedStatus, updateRecipePublicApprovedStatus, getMostUsedKeywords } from '../controllers/recipe.controller.js';
+import { createRecipeByAdmin, getAllRecipesForAdmin, getRecipeByIdForAdmin, deleteRecipeByAdmin, updateRecipeByAdmin, updateRecipeAdminApprovedStatus, updateRecipePublicApprovedStatus, getMostUsedKeywords, getPublicRecipesByKeywords } from '../controllers/recipe.controller.js';
 import { updateRecipeValidation } from '../validations/recipeValidation.js';
 import { upload } from '../utils/multer.js';
 
@@ -37,6 +37,8 @@ router.get(
     checkRole(['admin']),
     getMostUsedKeywords
 );
+
+router.get('/public-by-keywords', getPublicRecipesByKeywords)
 
 router.delete(
     '/delete-recipe-by-admin/:id',

@@ -1,4 +1,5 @@
-import { Category, CategoryOutlined, ExpandMore, FoodBank, Group, Logout, Person, RestaurantMenu, Settings } from '@mui/icons-material';
+import { Campaign, Category, CategoryOutlined, ExpandMore, FoodBank, Group, Logout, Person, Settings } from '@mui/icons-material';
+import AnnouncementIcon from '@mui/icons-material/Announcement';
 import React, { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -15,8 +16,13 @@ const adminLinks = [
   },
   {
     label: 'Manage Recipes',
-    icon: <FoodBank  />,
+    icon: <FoodBank />,
     to: '/admin/manage-recipes',
+  },
+  {
+    label: 'Manage Banners',
+    icon: <AnnouncementIcon/>,
+    to: '/admin/manage-banners',
   }
 ];
 
@@ -100,85 +106,85 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
                       ${open ? 'min-w-76 w-76' : 'min-w-20 w-20'}
                     `}
 
-                  >
-                    {link.subItems.map(sub => {
-                      const isSubActive = location.pathname === sub.to;
-                      return (
-                        <li key={sub.to}>
-                          <Link
-                            to={sub.to}
-                            className={`flex items-center gap-2 py-1 px-4 rounded transition font-medium
+                    >
+                      {link.subItems.map(sub => {
+                        const isSubActive = location.pathname === sub.to;
+                        return (
+                          <li key={sub.to}>
+                            <Link
+                              to={sub.to}
+                              className={`flex items-center gap-2 py-1 px-4 rounded transition font-medium
                             ${isSubActive ? 'bg-[#E06B00] text-white' : 'hover:bg-[#E06B00]/10 text-[#2C1400]'}
                           `}
-                            onClick={() => {
-                              setOpen(false);
-                              setSubmenuOpen(null);
-                            }}
-                          >
-                            <span className="text-lg">{sub.icon}</span>
-                            <span className="whitespace-nowrap">{sub.label}</span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </li>
-            );
-          }
-          const isActive = location.pathname === link.to;
-          return (
-            <li key={link.to}>
-              <Link
-                to={link.to}
-                className={`flex items-center gap-3 py-2 px-3 rounded transition font-semibold
+                              onClick={() => {
+                                setOpen(false);
+                                setSubmenuOpen(null);
+                              }}
+                            >
+                              <span className="text-lg">{sub.icon}</span>
+                              <span className="whitespace-nowrap">{sub.label}</span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </li>
+              );
+            }
+            const isActive = location.pathname === link.to;
+            return (
+              <li key={link.to}>
+                <Link
+                  to={link.to}
+                  className={`flex items-center gap-3 py-2 px-3 rounded transition font-semibold
                   ${isActive ? 'bg-[#E06B00] text-white' : 'hover:bg-[#E06B00]/10 text-[#2C1400]'}
                 `}
-                onClick={() => setOpen(false)}
-              >
-                <span className="text-xl">{link.icon}</span>
-                <span
-                  className={`whitespace-nowrap transition-all duration-200 ${open ? 'opacity-100 ml-2 w-auto' : 'opacity-0 w-0 ml-0 overflow-hidden'}`}
+                  onClick={() => setOpen(false)}
                 >
-                  {open && link.label}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-      <div
-        className="flex flex-col px-2 pb-6 gap-2 absolute bottom-0 left-0 bg-transparent"
-      >
-        <Link
-          to="/my-profile"
-          className={`flex items-center gap-3 py-2 px-3 rounded transition font-semibold
+                  <span className="text-xl">{link.icon}</span>
+                  <span
+                    className={`whitespace-nowrap transition-all duration-200 ${open ? 'opacity-100 ml-2 w-auto' : 'opacity-0 w-0 ml-0 overflow-hidden'}`}
+                  >
+                    {open && link.label}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <div
+          className="flex flex-col px-2 pb-6 gap-2 absolute bottom-0 left-0 bg-transparent"
+        >
+          <Link
+            to="/my-profile"
+            className={`flex items-center gap-3 py-2 px-3 rounded transition font-semibold
   ${location.pathname === '/my-profile' ? 'bg-[#E06B00] text-white' : 'hover:bg-[#E06B00]/10 text-[#2C1400]'}
 `}
-          onClick={() => setOpen(false)}
-        >
-          <Person className="text-xl" />
-          <span
-            className={`whitespace-nowrap transition-all duration-200 ${open ? 'opacity-100 ml-2' : 'opacity-0 w-0 ml-0 overflow-hidden'}`}
+            onClick={() => setOpen(false)}
           >
-            {open && 'Profile'}
-          </span>
-        </Link>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 py-2 px-3 rounded transition font-semibold hover:bg-[#E06B00]/10 text-[#2C1400]"
-          type="button"
-        >
-          <Logout className="text-xl" />
-          <span
-            className={`whitespace-nowrap transition-all duration-200 ${open ? 'opacity-100 ml-2' : 'opacity-0 w-0 ml-0 overflow-hidden'}`}
+            <Person className="text-xl" />
+            <span
+              className={`whitespace-nowrap transition-all duration-200 ${open ? 'opacity-100 ml-2' : 'opacity-0 w-0 ml-0 overflow-hidden'}`}
+            >
+              {open && 'Profile'}
+            </span>
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 py-2 px-3 rounded transition font-semibold hover:bg-[#E06B00]/10 text-[#2C1400]"
+            type="button"
           >
-            {open && 'Logout'}
-          </span>
-        </button>
-      </div>
-    </nav>
-  </>
+            <Logout className="text-xl" />
+            <span
+              className={`whitespace-nowrap transition-all duration-200 ${open ? 'opacity-100 ml-2' : 'opacity-0 w-0 ml-0 overflow-hidden'}`}
+            >
+              {open && 'Logout'}
+            </span>
+          </button>
+        </div>
+      </nav>
+    </>
   );
 };
 

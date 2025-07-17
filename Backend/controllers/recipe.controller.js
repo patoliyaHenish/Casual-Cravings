@@ -114,10 +114,10 @@ export const createRecipeByAdmin = async (req, res) => {
 
         if (
             !Number.isInteger(parsed_prep_time) || parsed_prep_time <= 0 ||
-            !Number.isInteger(parsed_cook_time) || parsed_cook_time <= 0 ||
+            !Number.isInteger(parsed_cook_time) || parsed_cook_time < 0 ||
             !Number.isInteger(parsed_serving_size) || parsed_serving_size <= 0
         ) {
-            return handleValidationError(res, "Prep time, cook time, and serving size must be positive integers");
+            return handleValidationError(res, "Prep time and serving size must be positive integers, cook time must be 0 or more");
         }
 
         if (!Array.isArray(parsed_recipe_instructions) || parsed_recipe_instructions.length === 0) {
@@ -185,16 +185,26 @@ export const createRecipeByAdmin = async (req, res) => {
         );
 
         if (parsed_ingredients && Array.isArray(parsed_ingredients) && parsed_ingredients.length > 0) {
+            const uniqueIngredients = [];
+            const seenIngredientIds = new Set();
+            
             for (const ingredient of parsed_ingredients) {
                 if (ingredient.ingredient_id && ingredient.quantity && ingredient.unit) {
-                    await pool.query(insertRecipeIngredientQuery, [
-                        recipe.recipe_id,
-                        ingredient.ingredient_id,
-                        ingredient.quantity,
-                        ingredient.quantity_display || ingredient.quantity,
-                        ingredient.unit
-                    ]);
+                    if (!seenIngredientIds.has(ingredient.ingredient_id)) {
+                        seenIngredientIds.add(ingredient.ingredient_id);
+                        uniqueIngredients.push(ingredient);
+                    }
                 }
+            }
+            
+            for (const ingredient of uniqueIngredients) {
+                await pool.query(insertRecipeIngredientQuery, [
+                    recipe.recipe_id,
+                    ingredient.ingredient_id,
+                    ingredient.quantity,
+                    ingredient.quantity_display || ingredient.quantity,
+                    ingredient.unit
+                ]);
             }
         }
 
@@ -457,16 +467,26 @@ export const updateRecipeByAdmin = async (req, res) => {
             await pool.query(deleteRecipeIngredientsQuery, [id]);
 
             if (Array.isArray(ingredients) && ingredients.length > 0) {
+                const uniqueIngredients = [];
+                const seenIngredientIds = new Set();
+                
                 for (const ingredient of ingredients) {
                     if (ingredient.ingredient_id && ingredient.quantity && ingredient.unit) {
-                        await pool.query(insertRecipeIngredientQuery, [
-                            id,
-                            ingredient.ingredient_id,
-                            ingredient.quantity,
-                            ingredient.quantity_display || ingredient.quantity,
-                            ingredient.unit
-                        ]);
+                        if (!seenIngredientIds.has(ingredient.ingredient_id)) {
+                            seenIngredientIds.add(ingredient.ingredient_id);
+                            uniqueIngredients.push(ingredient);
+                        }
                     }
+                }
+                
+                for (const ingredient of uniqueIngredients) {
+                    await pool.query(insertRecipeIngredientQuery, [
+                        id,
+                        ingredient.ingredient_id,
+                        ingredient.quantity,
+                        ingredient.quantity_display || ingredient.quantity,
+                        ingredient.unit
+                    ]);
                 }
             }
         }
@@ -589,3 +609,23 @@ export const getMostUsedKeywords = async (req, res) => {
         return handleServerError(res, error);
     }
 };
+
+export const getPublicRecipesByKeywords = async (req, res) => {
+  try {
+    let { keywords } = req.query
+    if (!keywords) return res.status(400).json({ error: 'Keywords are required' })
+    if (typeof keywords === 'string') {
+      try { keywords = JSON.parse(keywords) } catch { keywords = [keywords] }
+    }
+    if (!Array.isArray(keywords)) keywords = [keywords]
+    const result = await pool.query(
+      `SELECT * FROM recipe WHERE public_approved = true AND admin_approved_status = 'approved' AND (
+        keywords && $1
+      ) ORDER BY created_at DESC`,
+      [keywords]
+    )
+    res.json(result.rows)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch recipes' })
+  }
+}

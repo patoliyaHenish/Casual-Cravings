@@ -121,7 +121,7 @@ const AddRecipeSchema = Yup.object().shape({
       (value) => (value ? value.trim().split(/\s+/).filter(Boolean).length >= 50 : false)
     ),
   prep_time: Yup.number().required('Prep time is required').min(1),
-  cook_time: Yup.number().required('Cook time is required').min(1),
+  cook_time: Yup.number().required('Cook time is required').min(0),
   serving_size: Yup.number().required('Serving size is required').min(1),
   category_id: Yup.number().required('Category is required'),
   sub_category_id: Yup.mixed().nullable().transform((value) => {
@@ -277,9 +277,6 @@ const RecipeDialog = ({
               (sc) => sc.category_id === Number(values.category_id)
             );
             const subCategoriesExist = categorySubCategories.length > 0;
-            if (subCategoriesExist && !values.sub_category_id) {
-              errors.sub_category_id = 'Sub Category is required for this category';
-            }
             if (!subCategoriesExist && values.sub_category_id) {
               errors.sub_category_id = 'No sub-categories exist for this category';
             }
@@ -553,14 +550,13 @@ const RecipeDialog = ({
                 return subCategoriesExist ? (
                   <TextField
                     select
-                    label="Sub Category"
+                    label="Sub Category (Optional)"
                     name="sub_category_id"
                     value={values.sub_category_id || ''}
                     onChange={handleChange}
                     onBlur={handleBlur}
                     fullWidth
                     margin="normal"
-                    required
                     error={touched.sub_category_id && Boolean(errors.sub_category_id)}
                     helperText={touched.sub_category_id && errors.sub_category_id}
                   >
@@ -573,10 +569,18 @@ const RecipeDialog = ({
                   </TextField>
                 ) : values.category_id ? (
                   <div className="mt-4 mb-2 p-3 bg-gray-100 rounded text-gray-600">
-                    No sub-categories exist for this category. Sub-category selection is not required.
+                    No sub-categories exist for this category.
                   </div>
                 ) : null;
               })()}
+
+              <IngredientInput
+                value={values.ingredients || []}
+                onChange={(ingredients) => setFieldValue('ingredients', ingredients)}
+                disabled={isLoading}
+                dialogOpen={open}
+              />
+
               <div className="mb-4">
                 <TextField
                   label="Add Instruction"
@@ -636,14 +640,6 @@ const RecipeDialog = ({
                   ))}
                 </div>
               )}
-              
-
-              <IngredientInput
-                value={values.ingredients || []}
-                onChange={(ingredients) => setFieldValue('ingredients', ingredients)}
-                disabled={isLoading}
-                dialogOpen={open}
-              />
               <TextField
                 label={(!videoTitle && !videoThumbnail) ? "Video URL (YouTube)" : ""}
                 name="video_url"
@@ -717,11 +713,11 @@ const RecipeDialog = ({
                   !values.title ||
                   !values.description ||
                   values.description.trim().split(/\s+/).filter(Boolean).length < 50 ||
-                  !values.prep_time ||
-                  !values.cook_time ||
-                  !values.serving_size ||
+                  values.prep_time === null || values.prep_time === undefined ||
+                  values.cook_time === null || values.cook_time === undefined ||
+                  values.serving_size === null || values.serving_size === undefined ||
                   !values.category_id ||
-                  (subCategories.filter(sc => sc.category_id === Number(values.category_id)).length > 0 && !values.sub_category_id) ||
+
                   values.recipe_instructions.length === 0 ||
                   !values.video_url ||
                   !values.ingredients ||

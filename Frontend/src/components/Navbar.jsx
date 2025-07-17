@@ -3,6 +3,7 @@ import {
   AppBar, Toolbar, Typography, Button, IconButton, Box, Drawer, List, ListItem, ListItemText, Avatar, Menu, MenuItem
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo_bg_removed.png';
 import { useLogoutUserMutation } from '../features/api/authApi';
@@ -169,12 +170,15 @@ const Navbar = () => {
                   ml: 1,
                   '&:hover': { bgcolor: '#F97C1B', color: '#2C1400' },
                   borderRadius: 2,
-                  textTransform: 'none',
-                  fontSize: '1.08rem',
-                  px: 2.2,
+                  minWidth: 0,
+                  width: 44,
+                  height: 44,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                Login / Sign Up
+                <AccountCircleIcon sx={{ fontSize: 28 }} />
               </Button>
             )}
           </Box>
@@ -224,7 +228,9 @@ const Navbar = () => {
               </ListItem>
             ) : (
               <ListItem button component={RouterLink} to="/auth">
-                <ListItemText primary="Login / Sign Up" sx={{ '.MuiListItemText-primary': { fontSize: '1.08rem' } }} />
+                <IconButton color="primary">
+                  <AccountCircleIcon sx={{ fontSize: 28 }} />
+                </IconButton>
               </ListItem>
             )}
           </List>
