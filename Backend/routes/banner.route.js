@@ -5,7 +5,8 @@ import {
   deleteBanner,
   getAllBanners,
   getBannerById,
-  getActiveBanner
+  setHeroBanner,
+  getHeroBanner
 } from '../controllers/banner.controller.js'
 import isAuthenticated from '../middlewares/auth.middleware.js'
 import { checkRole } from '../utils/helper.js'
@@ -17,7 +18,8 @@ router.post('/', isAuthenticated, checkRole(['admin']), upload.fields([{name: 'b
 router.put('/:id', isAuthenticated, checkRole(['admin']), upload.fields([{name: 'bannerImage', maxCount: 1}]), updateBanner)
 router.delete('/:id', isAuthenticated, checkRole(['admin']), deleteBanner)
 router.get('/', isAuthenticated, checkRole(['admin']), getAllBanners)
-router.get('/active', getActiveBanner)
+router.get('/hero', getHeroBanner)
+router.post('/:id/set-hero', isAuthenticated, checkRole(['admin']), setHeroBanner)
 router.get('/:id', isAuthenticated, checkRole(['admin']), getBannerById)
 
 export default router 

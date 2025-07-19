@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -10,22 +10,116 @@ import {
   MenuItem,
 } from '@mui/material';
 import { useGetRecipeCategoriesQuery } from '../../../features/api/categoryApi';
+import { useGetRecipeSubCategoryByIdMutation, useUpdateRecipeSubCategoryMutation } from '../../../features/api/subCategoryApi';
+import { toast } from 'sonner';
 
 const EditSubCategoryDialog = ({
   open,
   onClose,
-  isLoading,
-  isUpdating,
-  form,
-  onFormChange,
-  onImageChange,
-  onSubmit,
+  subCategoryId,
 }) => {
-  if (!form) return null;
-  
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    categoryId: '',
+    image: null,
+    imagePreview: null,
+    removeImage: false,
+  });
+
+  const [getSubCategoryById, { isLoading }] = useGetRecipeSubCategoryByIdMutation();
+  const [updateRecipeSubCategory, { isLoading: isUpdating }] = useUpdateRecipeSubCategoryMutation();
   const { data: categoriesData, isLoading: isCategoriesLoading } = useGetRecipeCategoriesQuery({ search: '', page: 1, limit: 100 });
+  
   const categories = categoriesData?.data || [];
 
+  useEffect(() => {
+    const fetchData = async () => {
+      if (subCategoryId && open) {
+        try {
+          const result = await getSubCategoryById({ subCategoryId }).unwrap();
+          const data = result.data;
+          setForm({
+            name: data.name || '',
+            description: data.description || '',
+            categoryId: data.category_id || '',
+            image: null,
+            imagePreview: data.image || null,
+            removeImage: false,
+          });
+        } catch (error) {
+          console.error('Failed to fetch sub-category:', error);
+          toast.error('Failed to load sub-category data');
+        }
+      }
+    };
+
+    fetchData();
+  }, [subCategoryId, open, getSubCategoryById]);
+
+  const onFormChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const onImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setForm(prev => ({
+        ...prev,
+        image: file,
+        imagePreview: URL.createObjectURL(file),
+        removeImage: false,
+      }));
+    }
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name) {
+      toast.error('Name is required');
+      return;
+    }
+    if (!form.description) {
+      toast.error('Description is required');
+      return;
+    }
+    if (!form.categoryId) {
+      toast.error('Category is required');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('subCategoryId', subCategoryId);
+    formData.append('categoryId', form.categoryId);
+    formData.append('name', form.name);
+    formData.append('description', form.description);
+    if (form.image instanceof File) {
+      formData.append('recipeSubCategoryProfileImage', form.image);
+    }
+    if (form.removeImage) {
+      formData.append('removeImage', 'true');
+    }
+
+    try {
+      await updateRecipeSubCategory(formData).unwrap();
+      toast.success('Sub-category updated successfully');
+      onClose();
+    } catch (error) {
+      const errMsg =
+        error?.data?.message ||
+        error?.error ||
+        error?.message ||
+        'Failed to update sub-category';
+      toast.error(errMsg);
+    }
+  };
+
+  if (!form) return null;
+  
   const isNameValid = !!form.name;
   const isDescriptionValid = !!form.description && form.description.length >= 10;
   const isCategoryValid = !!form.categoryId;

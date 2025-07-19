@@ -9,8 +9,29 @@ import {
   CircularProgress,
   Box,
 } from '@mui/material';
+import { useGetRecipeSubCategoryByIdMutation } from '../../../features/api/subCategoryApi';
+import { useState, useEffect } from 'react';
 
-const ViewSubCategoryDialog = ({ open, onClose, isLoading, data }) => {
+const ViewSubCategoryDialog = ({ open, onClose, subCategoryId }) => {
+  const [getSubCategoryById, { isLoading }] = useGetRecipeSubCategoryByIdMutation();
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (subCategoryId && open) {
+        try {
+          const result = await getSubCategoryById({ subCategoryId }).unwrap();
+          setData(result.data);
+        } catch (error) {
+          console.error('Failed to fetch sub-category:', error);
+          setData(null);
+        }
+      }
+    };
+
+    fetchData();
+  }, [subCategoryId, open, getSubCategoryById]);
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm">
       <DialogTitle>Sub-Category Details</DialogTitle>

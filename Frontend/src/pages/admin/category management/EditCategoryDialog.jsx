@@ -1,19 +1,98 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress, TextField } from '@mui/material';
+import { useGetRecipeCategoryByIdQuery, useUpdateRecipeCategoryByIdMutation } from '../../../features/api/categoryApi';
+import { toast } from 'sonner';
 
 const EditCategoryDialog = ({
   open,
   onClose,
+  categoryId,
   highlight,
   setHighlight,
-  isLoading,
-  isUpdating,
-  form,
-  onFormChange,
-  onImageChange,
-  onSubmit,
 }) => {
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    image: null,
+    imagePreview: null,
+    removeImage: false,
+  });
+
+  const { data: categoryData, isLoading } = useGetRecipeCategoryByIdQuery(categoryId, {
+    skip: !categoryId || !open
+  });
+
+  const [updateRecipeCategoryById, { isLoading: isUpdating }] = useUpdateRecipeCategoryByIdMutation();
+
+  useEffect(() => {
+    if (categoryData?.data) {
+      setForm({
+        name: categoryData.data.name || '',
+        description: categoryData.data.description || '',
+        image: null,
+        imagePreview: categoryData.data.image || null,
+        removeImage: false,
+      });
+    }
+  }, [categoryData]);
+
+  const onFormChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const onImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setForm(prev => ({
+        ...prev,
+        image: file,
+        imagePreview: URL.createObjectURL(file),
+        removeImage: false,
+      }));
+    }
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name) {
+      toast.error('Name is required');
+      return;
+    }
+    if (!form.description) {
+      toast.error('Description is required');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('name', form.name);
+    formData.append('description', form.description);
+    if (form.image instanceof File) {
+      formData.append('recipeCategoryProfileImage', form.image);
+    }
+    if (form.removeImage) {
+      formData.append('removeImage', 'true');
+    }
+
+    try {
+      await updateRecipeCategoryById({ id: categoryId, inputData: formData }).unwrap();
+      toast.success('Category updated successfully');
+      onClose();
+    } catch (error) {
+      const errMsg =
+        error?.data?.message ||
+        error?.error ||
+        error?.message ||
+        'Failed to update category';
+      toast.error(errMsg);
+    }
+  };
+
   if (!form) return null;
+  
   const isNameValid = !!form.name;
   const isDescriptionValid = !!form.description;
   const isImageValid = !!(form.imagePreview || form.image);
@@ -24,11 +103,11 @@ const EditCategoryDialog = ({
       open={open}
       onClose={(event, reason) => {
         if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
-          setHighlight(true);
+          setHighlight && setHighlight(true);
           return;
         }
         onClose();
-        setHighlight(false);
+        setHighlight && setHighlight(false);
       }}
       maxWidth="sm"
       fullWidth
@@ -102,7 +181,7 @@ const EditCategoryDialog = ({
           <Button
             onClick={() => {
               onClose();
-              setHighlight(false);
+              setHighlight && setHighlight(false);
             }}
             color="inherit"
             variant="outlined"

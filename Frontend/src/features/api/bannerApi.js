@@ -48,9 +48,16 @@ export const bannerApi = createApi({
             }),
             invalidatesTags: ["Refetch_Banner"],
         }),
-        getActiveBanner: builder.query({
+        setHeroBanner: builder.mutation({
+            query: (id) => ({
+                url: `/${id}/set-hero`,
+                method: "POST",
+            }),
+            invalidatesTags: ["Refetch_Banner"],
+        }),
+        getHeroBanner: builder.query({
             query: () => ({
-                url: `/active`,
+                url: `/hero`,
                 baseUrl: PUBLIC_BANNER_API_URL,
                 method: "GET",
             }),
@@ -65,5 +72,6 @@ export const {
     useGetBannerByIdQuery,
     useUpdateBannerMutation,
     useDeleteBannerMutation,
-    useGetActiveBannerQuery
+    useSetHeroBannerMutation,
+    useGetHeroBannerQuery
 } = bannerApi; 

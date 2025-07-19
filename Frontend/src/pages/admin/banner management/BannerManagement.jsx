@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useGetBannersQuery, useCreateBannerMutation, useUpdateBannerMutation, useDeleteBannerMutation } from '../../../features/api/bannerApi'
-import { Button, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Box, Stack, Typography, IconButton, Autocomplete, Chip, Paper } from '@mui/material'
+import { useGetBannersQuery, useCreateBannerMutation, useUpdateBannerMutation, useDeleteBannerMutation, useSetHeroBannerMutation } from '../../../features/api/bannerApi'
+import { Button, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Box, Stack, Typography, IconButton, Autocomplete, Chip, Paper, Switch, Tooltip } from '@mui/material'
 import { toast } from 'sonner'
 import { DataTable, PageHeader, ActionButtons, ConfirmDialog, LoadingSpinner } from '../../../components/common'
 import CloseIcon from '@mui/icons-material/Close'
@@ -9,6 +9,7 @@ import * as Yup from 'yup'
 import FileUploadField from '../../../components/FileUploadField'
 import { useGetMostUsedKeywordsQuery } from '../../../features/api/recipeApi'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import StarIcon from '@mui/icons-material/Star'
 
 const bannerSchema = Yup.object().shape({
   title: Yup.string().required('Title is required'),
@@ -21,9 +22,10 @@ const BannerManagement = () => {
   const [createBanner, { isLoading: isAdding }] = useCreateBannerMutation()
   const [updateBanner, { isLoading: isUpdating }] = useUpdateBannerMutation()
   const [deleteBanner, { isLoading: isDeleting }] = useDeleteBannerMutation()
+  const [setHeroBanner, { isLoading: isSettingHero }] = useSetHeroBannerMutation()
   const [addOpen, setAddOpen] = useState(false)
   const [editId, setEditId] = useState(null)
-  const [editForm, setEditForm] = useState({ title: '', button_text: '', keywords: [], image: null })
+  const [editForm, setEditForm] = useState({ title: '', button_text: '', keywords: [], image: null, is_hero: false })
   const [deleteId, setDeleteId] = useState(null)
   const [addImagePreview, setAddImagePreview] = useState(null)
   const [editImagePreview, setEditImagePreview] = useState(null)
@@ -33,7 +35,7 @@ const BannerManagement = () => {
   const [viewBanner, setViewBanner] = useState(null)
 
   useEffect(() => {
-    if (!editId) setEditForm({ title: '', button_text: '', keywords: [], image: null })
+    if (!editId) setEditForm({ title: '', button_text: '', keywords: [], image: null, is_hero: false })
     else {
       const banner = data?.find(b => b.banner_id === editId)
       if (banner) setEditForm({
@@ -41,7 +43,8 @@ const BannerManagement = () => {
         button_text: banner.button_text,
         keywords: banner.keywords || [],
         image: null,
-        imagePreview: banner.image_url
+        imagePreview: banner.image_url,
+        is_hero: banner.is_hero || false
       })
       setEditImagePreview(banner?.image_url || null)
     }
@@ -63,6 +66,7 @@ const BannerManagement = () => {
     formData.append('title', values.title)
     formData.append('button_text', values.button_text)
     formData.append('keywords', JSON.stringify(values.keywords))
+    formData.append('is_hero', values.is_hero)
     if (values.image) formData.append('bannerImage', values.image)
     try {
       await createBanner(formData).unwrap()
@@ -80,6 +84,7 @@ const BannerManagement = () => {
     formData.append('title', values.title)
     formData.append('button_text', values.button_text)
     formData.append('keywords', JSON.stringify(values.keywords))
+    formData.append('is_hero', values.is_hero)
     if (values.image instanceof File) formData.append('bannerImage', values.image)
     try {
       await updateBanner({ id: editId, inputData: formData }).unwrap()
@@ -91,12 +96,39 @@ const BannerManagement = () => {
     setSubmitting(false)
   }
 
+  const handleSetHero = async (id) => {
+    try {
+      await setHeroBanner(id).unwrap()
+      toast.success('Set as hero banner')
+    } catch {
+      toast.error('Failed to set hero banner')
+    }
+  }
+
   const columns = [
     { header: '#', field: 'index', render: (row, idx) => idx + 1 },
     { header: 'Title', field: 'title' },
     { header: 'Button Text', field: 'button_text' },
     { header: 'Keywords', field: 'keywords', render: row => (row.keywords || []).join(', ') },
     { header: 'Image', field: 'image_url', render: row => row.image_url ? <img src={row.image_url} alt="banner" className="h-12 w-20 object-cover rounded" /> : <span className="text-gray-400">No Image</span> },
+    {
+      header: 'Hero',
+      field: 'is_hero',
+      render: row => (
+        <Tooltip title={row.is_hero ? 'Current Hero Banner' : 'Set as Hero'}>
+          <span>
+            <IconButton
+              color={row.is_hero ? 'warning' : 'default'}
+              disabled={row.is_hero || isSettingHero}
+              onClick={() => handleSetHero(row.banner_id)}
+              size="small"
+            >
+              <StarIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+      )
+    },
     {
       header: 'Actions',
       field: 'actions',
@@ -140,7 +172,7 @@ const BannerManagement = () => {
           <IconButton onClick={() => setAddOpen(false)}><CloseIcon /></IconButton>
         </DialogTitle>
         <Formik
-          initialValues={{ title: '', button_text: '', keywords: [], image: null }}
+          initialValues={{ title: '', button_text: '', keywords: [], image: null, is_hero: false }}
           validationSchema={bannerSchema}
           onSubmit={handleAddSubmit}
           validateOnBlur={true}
@@ -198,6 +230,15 @@ const BannerManagement = () => {
                       )}
                     />
                     <FileUploadField label="Banner Image" value={values.image} onChange={handleFileChange} accept="image/*" />
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Switch
+                        checked={values.is_hero}
+                        onChange={(_, checked) => setFieldValue('is_hero', checked)}
+                        color="warning"
+                        inputProps={{ 'aria-label': 'Set as hero banner' }}
+                      />
+                      <Typography variant="body2">Set as Hero Banner</Typography>
+                    </Box>
                     {addImagePreview && (
                       <img src={addImagePreview} alt="preview" className="h-16 w-full object-cover rounded mt-2" />
                     )}
@@ -223,7 +264,8 @@ const BannerManagement = () => {
             title: editForm.title,
             button_text: editForm.button_text,
             keywords: editForm.keywords,
-            image: null
+            image: null,
+            is_hero: editForm.is_hero
           }}
           validationSchema={bannerSchema}
           onSubmit={handleEditSubmit}
@@ -282,6 +324,15 @@ const BannerManagement = () => {
                       )}
                     />
                     <FileUploadField label="Banner Image" value={values.image} onChange={handleFileChange} accept="image/*" previewUrl={editForm.imagePreview} />
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Switch
+                        checked={values.is_hero}
+                        onChange={(_, checked) => setFieldValue('is_hero', checked)}
+                        color="warning"
+                        inputProps={{ 'aria-label': 'Set as hero banner' }}
+                      />
+                      <Typography variant="body2">Set as Hero Banner</Typography>
+                    </Box>
                     {editImagePreview && (
                       <img src={editImagePreview} alt="preview" className="h-16 w-full object-cover rounded mt-2" />
                     )}
@@ -307,6 +358,7 @@ const BannerManagement = () => {
               <Typography variant="subtitle1"><b>Title:</b> {viewBanner.title}</Typography>
               <Typography variant="subtitle1"><b>Button Text:</b> {viewBanner.button_text}</Typography>
               <Typography variant="subtitle1"><b>Keywords:</b> {(viewBanner.keywords || []).join(', ')}</Typography>
+              {viewBanner.is_hero && <Typography variant="subtitle1" color="warning.main"><b>Hero Banner</b></Typography>}
               {viewBanner.image_url && <img src={viewBanner.image_url} alt="banner" className="h-32 w-full object-cover rounded" />}
             </Stack>
           )}

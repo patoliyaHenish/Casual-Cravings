@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   useGetAllRecipeSubCategorieDetailsQuery,
   useCreateRecipeSubCategoryMutation,
-  useUpdateRecipeSubCategoryMutation,
   useDeleteRecipeSubCategoryMutation,
 } from '../../../features/api/subCategoryApi';
 import { Button } from '@mui/material';
@@ -30,7 +29,6 @@ const RecipeSubCategory = () => {
   const { data, isLoading, isError } = useGetAllRecipeSubCategorieDetailsQuery({ search, page, limit });
 
   const [createRecipeSubCategory, { isLoading: isAdding }] = useCreateRecipeSubCategoryMutation();
-  const [updateRecipeSubCategory, { isLoading: isUpdating }] = useUpdateRecipeSubCategoryMutation();
   const [deleteRecipeSubCategory, { isLoading: isDeleting }] = useDeleteRecipeSubCategoryMutation();
 
   const subCategories = data?.data || [];
@@ -95,23 +93,7 @@ const RecipeSubCategory = () => {
     }
   };
 
-  const handleEditSubmit = async (values) => {
-    const formData = new FormData();
-    formData.append('subCategoryId', editId);
-    formData.append('categoryId', values.categoryId);
-    formData.append('name', values.name);
-    formData.append('description', values.description);
-    if (values.image) {
-      formData.append('recipeSubCategoryProfileImage', values.image);
-    }
-    try {
-      await updateRecipeSubCategory(formData).unwrap();
-      toast.success('Sub-category updated successfully');
-      handleEditClose();
-    } catch (error) {
-      toast.error(error?.data?.message || 'Failed to update sub-category');
-    }
-  };
+
 
   const columns = [
     {
@@ -203,8 +185,6 @@ const RecipeSubCategory = () => {
       <EditSubCategoryDialog
         open={!!editId}
         onClose={handleEditClose}
-        onSubmit={handleEditSubmit}
-        isLoading={isUpdating}
         subCategoryId={editId}
       />
 

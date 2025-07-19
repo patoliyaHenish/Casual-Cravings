@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useGetRecipeCategoriesQuery, useGetRecipeCategoryByIdQuery, useDeleteRecipeCategoryByIdMutation, useUpdateRecipeCategoryByIdMutation, useCreateRecipeCategoryMutation } from '../../../features/api/categoryApi';
+import React, { useState } from 'react';
+import { useGetRecipeCategoriesQuery, useDeleteRecipeCategoryByIdMutation, useCreateRecipeCategoryMutation } from '../../../features/api/categoryApi';
 import { Button } from '@mui/material';
 import { toast } from 'sonner';
 import ViewCategoryDialog from './ViewCategoryDialog';
@@ -21,26 +21,11 @@ const RecipeCategory = () => {
   const [viewId, setViewId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [editId, setEditId] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', description: '' });
   const [addOpen, setAddOpen] = useState(false);
 
   const { data, isLoading, isError } = useGetRecipeCategoriesQuery({ search, page, limit });
-  const { data: editData } = useGetRecipeCategoryByIdQuery(editId, { skip: !editId });
   const [deleteRecipeCategoryById, { isLoading: isDeleting }] = useDeleteRecipeCategoryByIdMutation();
-  const [updateRecipeCategoryById, { isLoading: isUpdating }] = useUpdateRecipeCategoryByIdMutation();
   const [createRecipeCategory, { isLoading: isAdding }] = useCreateRecipeCategoryMutation();
-
-  useEffect(() => {
-    if (editId && editData?.data) {
-      setEditForm({
-        name: editData.data.name || '',
-        description: editData.data.description || '',
-        image: editData.data.image || null,
-        imagePreview: null,
-        removeImage: false,
-      });
-    }
-  }, [editId, editData]);
 
   if (isLoading) return (
     <div className="flex justify-center items-center h-40">
@@ -95,36 +80,6 @@ const RecipeCategory = () => {
 
   const handleEditClose = () => {
     setEditId(null);
-    setEditForm({ name: '', description: '' });
-  };
-
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    if (!editForm.name) {
-      toast.error('Name is required');
-      return;
-    }
-    const formData = new FormData();
-    formData.append('name', editForm.name);
-    formData.append('description', editForm.description);
-    if (editForm.image instanceof File) {
-      formData.append('recipeCategoryProfileImage', editForm.image);
-    }
-    if (editForm.removeImage) {
-      formData.append('removeImage', 'true');
-    }
-    try {
-      await updateRecipeCategoryById({ id: editId, inputData: formData }).unwrap();
-      toast.success('Category updated successfully');
-      handleEditClose();
-    } catch (error) {
-      const errMsg =
-        error?.data?.message ||
-        error?.error ||
-        error?.message ||
-        'Failed to update category';
-      toast.error(errMsg);
-    }
   };
 
 
@@ -241,8 +196,6 @@ const RecipeCategory = () => {
       <EditCategoryDialog
         open={!!editId}
         onClose={handleEditClose}
-        onSubmit={handleEditSubmit}
-        isLoading={isUpdating}
         categoryId={editId}
       />
 
