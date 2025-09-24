@@ -6,8 +6,8 @@ import App from './App.jsx'
 import { appStore } from './app/store.js'
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Loader from './components/LoadingSpinner.jsx'
-import NoInternet from './components/NoInternet.jsx'
+import Loader from './components/LoadingSpinner.jsx';
+import NoInternet from './components/NoInternet.jsx';
 
 const Custom = ({ children }) => {
   const isLoading = useSelector(state => state.loading.isLoading);
