@@ -40,9 +40,9 @@ const ViewRecipeDialog = ({ open, onClose, isLoading, data }) => {
           <div className="text-gray-500 text-center">No data found.</div>
         ) : (
           <div className="flex flex-col gap-2">
-            {data.image_url && (
+            {data.image && (
               <img
-                src={data.image_url}
+                src={data.image}
                 alt={data.title}
                 className="w-45 h-30 object-cover rounded-lg mb-3"
               />

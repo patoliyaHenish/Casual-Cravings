@@ -12,6 +12,8 @@ import {
 import { useGetRecipeCategoriesQuery } from '../../../features/api/categoryApi';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import { convertImageFileToBase64 } from '../../../utils/helper';
+import { toast } from 'react-toastify';
 
 const validationSchema = Yup.object().shape({
     categoryId: Yup.number().required('Select any one Category'),
@@ -56,14 +58,24 @@ const AddSubCategoryDialog = ({
             image: null,
         },
         validationSchema,
-        onSubmit: (values, helpers) => {
-            const submitValues = {
-                ...values,
-                categoryId: Number(values.categoryId),
-            };
-            onSubmit(submitValues, helpers);
-            helpers.resetForm();
-            setImagePreview(null);
+        onSubmit: async (values, helpers) => {
+            try {
+                let imageData = null;
+                if (values.image) {
+                    imageData = await convertImageFileToBase64(values.image);
+                }
+                
+                const submitValues = {
+                    ...values,
+                    categoryId: Number(values.categoryId),
+                    imageData: imageData
+                };
+                onSubmit(submitValues, helpers);
+                helpers.resetForm();
+                setImagePreview(null);
+            } catch (error) {
+                toast.error('Failed to process image');
+            }
         },
     });
 

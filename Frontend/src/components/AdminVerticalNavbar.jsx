@@ -3,6 +3,7 @@ import AnnouncementIcon from '@mui/icons-material/Announcement';
 import React, { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { useTheme } from '../context/ThemeContext';
 import { useLogoutUserMutation } from '../features/api/authApi';
 
 const adminLinks = [
@@ -30,6 +31,7 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
   const location = useLocation();
   const wasOpenByHover = useRef(false);
   const { setUser } = useUser();
+  const { isDarkMode } = useTheme();
   const [logoutUser] = useLogoutUserMutation();
   const navigate = useNavigate();
 
@@ -62,7 +64,7 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={`
-   h-screen bg-[#ffffff] text-[#2C1400] shadow-lg flex flex-col
+   h-screen shadow-lg flex flex-col
     transition-all duration-300
     ${open ? 'w-80' : 'w-20'}
     fixed md:static
@@ -70,6 +72,12 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
     ${open ? 'block' : 'hidden'} md:block
     ${open ? 'min-w-64' : 'min-w-20'}
   `}
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          color: 'var(--text-primary)',
+          borderRight: `1px solid var(--border-color)`,
+          transition: 'all 0.3s ease'
+        }}
       >
 
         <ul className="flex flex-col space-y-2 px-2 pt-24">
@@ -81,8 +89,26 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
                 <li key={link.label} className="relative">
                   <div
                     className={`flex items-center gap-3 py-2 px-3 rounded transition font-semibold cursor-pointer
-                      ${isAnySubActive ? 'bg-[#E06B00] text-white' : 'hover:bg-[#E06B00]/10 text-[#2C1400]'}
+                      ${isAnySubActive ? 'bg-gray-700 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
                     `}
+                    style={{
+                      color: isAnySubActive ? '#ffffff' : 'var(--text-primary)',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isAnySubActive) {
+                        e.currentTarget.style.color = '#ffffff';
+                        const icon = e.currentTarget.querySelector('svg');
+                        if (icon) icon.style.color = '#ffffff';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isAnySubActive) {
+                        e.currentTarget.style.color = 'var(--text-primary)';
+                        const icon = e.currentTarget.querySelector('svg');
+                        if (icon) icon.style.color = 'var(--text-primary)';
+                      }
+                    }}
                     onClick={() => setSubmenuOpen(isOpen ? null : link.label)}
                   >
                     <span className="text-xl">{link.icon}</span>
@@ -100,12 +126,16 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
                   </div>
                   {open && isOpen && (
                     <ul
-                      className={`mt-1 bg-white shadow rounded flex flex-col gap-1 py-2 z-40
+                      className={`mt-1 shadow rounded flex flex-col gap-1 py-2 z-40
                       transition-all duration-300 origin-top animate-dropdown
                       ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}
                       ${open ? 'min-w-76 w-76' : 'min-w-20 w-20'}
                     `}
-
+                      style={{
+                        backgroundColor: 'var(--bg-primary)',
+                        border: `1px solid var(--border-color)`,
+                        transition: 'all 0.3s ease'
+                      }}
                     >
                       {link.subItems.map(sub => {
                         const isSubActive = location.pathname === sub.to;
@@ -114,8 +144,26 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
                             <Link
                               to={sub.to}
                               className={`flex items-center gap-2 py-1 px-4 rounded transition font-medium
-                            ${isSubActive ? 'bg-[#E06B00] text-white' : 'hover:bg-[#E06B00]/10 text-[#2C1400]'}
+                            ${isSubActive ? 'bg-gray-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
                           `}
+                              style={{
+                                color: isSubActive ? '#ffffff' : 'var(--text-primary)',
+                                transition: 'all 0.3s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSubActive) {
+                                  e.currentTarget.style.color = '#ffffff';
+                                  const icon = e.currentTarget.querySelector('svg');
+                                  if (icon) icon.style.color = '#ffffff';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isSubActive) {
+                                  e.currentTarget.style.color = 'var(--text-primary)';
+                                  const icon = e.currentTarget.querySelector('svg');
+                                  if (icon) icon.style.color = 'var(--text-primary)';
+                                }
+                              }}
                               onClick={() => {
                                 setOpen(false);
                                 setSubmenuOpen(null);
@@ -138,8 +186,26 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
                 <Link
                   to={link.to}
                   className={`flex items-center gap-3 py-2 px-3 rounded transition font-semibold
-                  ${isActive ? 'bg-[#E06B00] text-white' : 'hover:bg-[#E06B00]/10 text-[#2C1400]'}
+                  ${isActive ? 'bg-gray-700 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
                 `}
+                  style={{
+                    color: isActive ? '#ffffff' : 'var(--text-primary)',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = '#ffffff';
+                      const icon = e.currentTarget.querySelector('svg');
+                      if (icon) icon.style.color = '#ffffff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = 'var(--text-primary)';
+                      const icon = e.currentTarget.querySelector('svg');
+                      if (icon) icon.style.color = 'var(--text-primary)';
+                    }
+                  }}
                   onClick={() => setOpen(false)}
                 >
                   <span className="text-xl">{link.icon}</span>
@@ -154,13 +220,35 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
           })}
         </ul>
         <div
-          className="flex flex-col px-2 pb-6 gap-2 absolute bottom-0 left-0 bg-transparent"
+          className="flex flex-col px-2 pb-6 gap-2 absolute bottom-0 left-0"
+          style={{
+            backgroundColor: 'transparent',
+            transition: 'all 0.3s ease'
+          }}
         >
           <Link
             to="/my-profile"
             className={`flex items-center gap-3 py-2 px-3 rounded transition font-semibold
-  ${location.pathname === '/my-profile' ? 'bg-[#E06B00] text-white' : 'hover:bg-[#E06B00]/10 text-[#2C1400]'}
+  ${location.pathname === '/my-profile' ? 'bg-gray-700 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
 `}
+            style={{
+              color: location.pathname === '/my-profile' ? '#ffffff' : 'var(--text-primary)',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (location.pathname !== '/my-profile') {
+                e.currentTarget.style.color = '#ffffff';
+                const icon = e.currentTarget.querySelector('svg');
+                if (icon) icon.style.color = '#ffffff';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (location.pathname !== '/my-profile') {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                const icon = e.currentTarget.querySelector('svg');
+                if (icon) icon.style.color = 'var(--text-primary)';
+              }
+            }}
             onClick={() => setOpen(false)}
           >
             <Person className="text-xl" />
@@ -172,7 +260,21 @@ const AdminVerticalNavbar = ({ open, setOpen }) => {
           </Link>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 py-2 px-3 rounded transition font-semibold hover:bg-[#E06B00]/10 text-[#2C1400]"
+            className="flex items-center gap-3 py-2 px-3 rounded transition font-semibold hover:bg-gray-100 dark:hover:bg-gray-700"
+            style={{
+              color: 'var(--text-primary)',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#ffffff';
+              const icon = e.currentTarget.querySelector('svg');
+              if (icon) icon.style.color = '#ffffff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              const icon = e.currentTarget.querySelector('svg');
+              if (icon) icon.style.color = 'var(--text-primary)';
+            }}
             type="button"
           >
             <Logout className="text-xl" />

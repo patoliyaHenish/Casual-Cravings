@@ -43,7 +43,6 @@ export const authApi = createApi({
                     const { data } = await queryFulfilled;
                     dispatch(userLoggedIn(data));
                 } catch (error) {
-                    console.error('Login failed:', error);
                 }
             },
         }),
@@ -85,7 +84,6 @@ export const authApi = createApi({
                     await queryFulfilled;
                     dispatch(userLoggedOut());
                 } catch (error) {
-                    console.error('Logout failed:', error);
                 }
             },
         }),
@@ -102,7 +100,6 @@ export const authApi = createApi({
                         dispatch(userLoggedIn({ user: data.user }));
                     }
                 } catch (error) {
-                    console.error('Fetching profile failed:', error);
                 }
             },
         }),
@@ -120,7 +117,6 @@ export const authApi = createApi({
                         dispatch(userLoggedIn({ user: data.user }));
                     }
                 } catch (error) {
-                    console.error('Updating profile failed:', error);
                 }
             },
         }),

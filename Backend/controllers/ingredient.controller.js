@@ -8,14 +8,14 @@ import {
     searchIngredientsExcludingQuery,
     getAllIngredientsQuery,
     getAllIngredientsExcludingQuery
-} from "../query/ingredients/ingredient.js";
+} from "../query/ingredient.js";
 import {
     insertRecipeIngredientQuery,
     getRecipeIngredientsQuery,
     deleteRecipeIngredientsQuery,
     updateRecipeIngredientQuery,
     deleteRecipeIngredientQuery
-} from "../query/recipe ingredient/recipeIngredient.js";
+} from "../query/recipeIngredient.js";
 
 export const createIngredient = async (req, res) => {
     try {

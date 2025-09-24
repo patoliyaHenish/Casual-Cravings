@@ -4,7 +4,6 @@ import { checkRole, validate } from '../utils/helper.js';
 import { createRecipeValidation } from '../validations/recipeValidation.js';
 import { createRecipeByAdmin, getAllRecipesForAdmin, getRecipeByIdForAdmin, deleteRecipeByAdmin, updateRecipeByAdmin, updateRecipeAdminApprovedStatus, updateRecipePublicApprovedStatus, getMostUsedKeywords, getPublicRecipesByKeywords } from '../controllers/recipe.controller.js';
 import { updateRecipeValidation } from '../validations/recipeValidation.js';
-import { upload } from '../utils/multer.js';
 
 const router = express.Router();
 
@@ -12,7 +11,6 @@ router.post(
     '/create-recipe-by-admin',
     isAuthenticated,
     checkRole(['admin']),
-    upload.fields([{name: "recipeImage", maxCount: 1}]),
     validate(createRecipeValidation),
     createRecipeByAdmin
 );
@@ -38,7 +36,7 @@ router.get(
     getMostUsedKeywords
 );
 
-router.get('/public-by-keywords', getPublicRecipesByKeywords)
+router.get('/get-public-recipes-by-keywords', getPublicRecipesByKeywords)
 
 router.delete(
     '/delete-recipe-by-admin/:id',
@@ -51,7 +49,6 @@ router.put(
     '/update-recipe-by-admin/:id',
     isAuthenticated,
     checkRole(['admin']),
-    upload.fields([{name: "recipeImage", maxCount: 1}]),
     validate(updateRecipeValidation),
     updateRecipeByAdmin
 );

@@ -1,5 +1,5 @@
 import { pool } from '../config/db.js';
-import { getUserByEmailAndResetToken } from '../query/users/user.js';
+import { getUserByEmailAndResetToken } from '../query/user.js';
 import { handleValidationError } from '../utils/erroHandler.js';
 
 const validateResetToken = async (req, res, next) => {

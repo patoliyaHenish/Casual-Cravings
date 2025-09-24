@@ -4,11 +4,13 @@ import Navbar from '../components/Navbar';
 import Loader from '../components/loadingSpinner';
 import AdminVerticalNavbar from '../components/AdminVerticalNavbar';
 import { useUser } from '../context/UserContext';
+import { useTheme } from '../context/ThemeContext';
 import { MenuOpenRounded, CloseRounded } from '@mui/icons-material';
 
 const MainLayout = () => {
   const navigation = useNavigation();
   const { user } = useUser();
+  const { isDarkMode } = useTheme();
 
   const [adminNavOpen, setAdminNavOpen] = useState(() => {
   const stored = localStorage.getItem('adminNavOpen');
@@ -25,16 +27,21 @@ const MainLayout = () => {
   }, [adminNavOpen]);
 
   return (
-    <div>
+    <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', transition: 'background-color 0.3s ease' }}>
       <Navbar />
       {navigation.state === 'loading' && <Loader />}
       <div className="flex">
         {user?.role === 'admin' && (
           <>
             <button
-              className={`md:hidden fixed z-[999] bg-[#FFF3E0] rounded-full shadow p-2 transition-all duration-300 ${
+              className={`md:hidden fixed z-[999] rounded-full shadow p-2 transition-all duration-300 ${
                 adminNavOpen ? 'top-16 left-68' : 'top-16 left-4'
               }`}
+              style={{
+                backgroundColor: 'var(--card-bg)',
+                border: `1px solid var(--border-color)`,
+                transition: 'all 0.3s ease'
+              }}
               aria-label="Toggle Admin Menu"
               onClick={() => setAdminNavOpen(prev => !prev)}
               type="button"
@@ -56,6 +63,10 @@ const MainLayout = () => {
                 : 'flex-1 ml-0 transition-all duration-300 h-screen overflow-y-auto mt-1 md:mt-0'
               : 'flex-1 h-screen overflow-y-auto'
           }
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            transition: 'background-color 0.3s ease'
+          }}
         >
           <Outlet />
         </div>

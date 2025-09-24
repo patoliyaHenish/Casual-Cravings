@@ -12,71 +12,96 @@ import RecipeCategory from "../pages/admin/category management/RecipeCategory";
 import RecipeSubCategory from "../pages/admin/sub-category/RecipeSubCategory";
 import Recipe from "../pages/admin/recipe management/Recipe";
 import BannerManagement from '../pages/admin/banner management/BannerManagement'
+import { UserProvider } from "../context/UserContext";
+import { LoadingProvider } from "../context/LoadingContext";
+import AppWrapper from "../components/AppWrapper";
+import Search from "../pages/users/Search";
+import BannerRecipes from "../pages/users/BannerRecipes";
 
 export const appRouter = createBrowserRouter([
     {
         path: '/',
-        element: <MainLayout />,
+        element: (
+            <UserProvider>
+                <LoadingProvider>
+                    <AppWrapper />
+                </LoadingProvider>
+            </UserProvider>
+        ),
         children: [
             {
-                path: "*",
-                element: <Error404 />
-            },
-            {
-                path: "not-authenticated",
-                element: <UserNotAuthentiCated />
-            },
-            {
-                path: "",
-                element: <Home />
-            },
-            {
-                path: "auth",
-                element: <Auth />
-            },
-            {
-                path: "reset-password/:email/:token",
-                element: <ResetPassword />
-            },
-            {
-                path: "my-profile",
-                element: (
-                    <ProtectedRoute allowedRoles={["user", "admin"]}>
-                        <MyProfile/>
-                    </ProtectedRoute>
-                )
-            },
-            {
-                path: "/admin/manage-recipe-category",
-                element: (
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                        <RecipeCategory />
-                    </ProtectedRoute>
-                )
-            },
-            {
-                path: "/admin/manage-recipe-subcategories",
-                element: (
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                        <RecipeSubCategory/>
-                    </ProtectedRoute>
-                )
-            },
-            {
-                path: "/admin/manage-recipes",
-                element: (
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                        <Recipe/>
-                    </ProtectedRoute>
-                )
-            },
-            {
-                path: "/admin/manage-banners",
-                element: (
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                        <BannerManagement />
-                    </ProtectedRoute>
-                )
+                path: '/',
+                element: <MainLayout />,
+                children: [
+                    {
+                        path: "*",
+                        element: <Error404 />
+                    },
+                    {
+                        path: "not-authenticated",
+                        element: <UserNotAuthentiCated />
+                    },
+                    {
+                        path: "",
+                        element: <Home />
+                    },
+                    {
+                        path: "search",
+                        element: <Search />
+                    },
+                    {
+                        path: "/banner-recipes",
+                        element: <BannerRecipes />
+                    },
+                    {
+                        path: "auth",
+                        element: <Auth />
+                    },
+                    {
+                        path: "reset-password/:email/:token",
+                        element: <ResetPassword />
+                    },
+                    {
+                        path: "my-profile",
+                        element: (
+                            <ProtectedRoute allowedRoles={["user", "admin"]}>
+                                <MyProfile/>
+                            </ProtectedRoute>
+                        )
+                    },
+                    {
+                        path: "/admin/manage-recipe-category",
+                        element: (
+                            <ProtectedRoute allowedRoles={["admin"]}>
+                                <RecipeCategory />
+                            </ProtectedRoute>
+                        )
+                    },
+                    {
+                        path: "/admin/manage-recipe-subcategories",
+                        element: (
+                            <ProtectedRoute allowedRoles={["admin"]}>
+                                <RecipeSubCategory/>
+                            </ProtectedRoute>
+                        )
+                    },
+                    {
+                        path: "/admin/manage-recipes",
+                        element: (
+                            <ProtectedRoute allowedRoles={["admin"]}>
+                                <Recipe/>
+                            </ProtectedRoute>
+                        )
+                    },
+                    {
+                        path: "/admin/manage-banners",
+                        element: (
+                            <ProtectedRoute allowedRoles={["admin"]}>
+                                <BannerManagement />
+                            </ProtectedRoute>
+                        )
+                    }
+                ]
             }
         ]
     }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { TextField, Button, Paper, CircularProgress, Box, InputAdornment, IconButton } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import * as Yup from 'yup';
 import { Formik, Form } from 'formik';
 import { useResetPasswordMutation } from '../features/api/authApi';

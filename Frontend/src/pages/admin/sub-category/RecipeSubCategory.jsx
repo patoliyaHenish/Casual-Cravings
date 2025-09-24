@@ -5,7 +5,7 @@ import {
   useDeleteRecipeSubCategoryMutation,
 } from '../../../features/api/subCategoryApi';
 import { Button } from '@mui/material';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import ViewSubCategoryDialog from './ViewSubCategoryDialog';
 import EditSubCategoryDialog from './EditSubCategoryDialog';
 import AddSubCategoryDialog from './AddSubCategoryDialog';
@@ -76,15 +76,8 @@ const RecipeSubCategory = () => {
   const handleAddClose = () => setAddOpen(false);
 
   const handleAddSubmit = async (values, { resetForm }) => {
-    const formData = new FormData();
-    formData.append('categoryId', Number(values.categoryId));
-    formData.append('name', values.name);
-    formData.append('description', values.description);
-    if (values.image) {
-      formData.append('recipeSubCategoryProfileImage', values.image);
-    }
     try {
-      await createRecipeSubCategory(formData).unwrap();
+      await createRecipeSubCategory(values).unwrap();
       toast.success('Sub-category added successfully');
       setAddOpen(false);
       resetForm();

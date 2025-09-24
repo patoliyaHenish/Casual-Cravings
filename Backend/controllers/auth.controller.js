@@ -1,24 +1,25 @@
-import { pool } from '../config/db.js';
 import bcrypt from 'bcrypt';
-import { getUserByEmailAndResetToken, getUserByEmailQuery, getUserProfileByEmail, insertUser, updateResetTokenByEmail } from '../query/users/user.js';
+import dotenv from 'dotenv';
+import fs from 'fs';
+import nodemailer from 'nodemailer';
+import { pool } from '../config/db.js';
+import { insertFileStorage } from '../query/fileStorage.js';
+import { getUserByEmailAndResetToken, getUserByEmailQuery, getUserProfileByEmail, insertUser, updateResetTokenByEmail } from '../query/user.js';
 import {
-    handleValidationError,
+    handleNotFoundError,
     handleServerError,
-    handleNotFoundError
+    handleValidationError
 } from '../utils/erroHandler.js';
 import { deleteToken, generateToken } from '../utils/generateToken.js';
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
 import { generateAndSendOtp } from '../utils/helper.js';
-import { uploadToClodinary, deleteFromCloudinary } from '../utils/cloudinary.js';
-import fs from 'fs';
 dotenv.config();
 
 export const register = async (req, res) => {
     const {
         name,
         email,
-        password
+        password,
+        profilePicData
     } = req.body;
 
     try {
@@ -27,30 +28,38 @@ export const register = async (req, res) => {
             return handleValidationError(res, 'User already exists with this email.', 409);
         }
 
-        let profilePicUrl = null;
-        let profilePicPath = null;
-        
-        if (req.files && req.files.profilePic && req.files.profilePic.length > 0) {
-            profilePicPath = req.files.profilePic[0].path;
-            const uploadResult = await uploadToClodinary(profilePicPath, 'profile_pics');
-            profilePicUrl = uploadResult.secure_url;
-
-            fs.unlink(profilePicPath, (err) => {
-                if (err) console.error('Error deleting local file:', err);
-            });
-        }
-
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await pool.query(
+        const insertResult = await pool.query(
             insertUser,
             [
                 name,
                 email,
-                hashedPassword,
-                profilePicUrl,
+                hashedPassword
             ] 
         );
+
+        if (insertResult.rows && insertResult.rows[0]) {
+            const userId = insertResult.rows[0].id;
+
+            if (profilePicData && profilePicData.image_data && profilePicData.mime_type) {
+                try {
+                    const fileBuffer = Buffer.from(profilePicData.image_data, 'base64');
+                    
+                    await pool.query(
+                        insertFileStorage,
+                        [
+                            'users',
+                            userId,
+                            profilePicData.filename || 'profile.jpg',
+                            profilePicData.mime_type,
+                            fileBuffer
+                        ]
+                    );
+                } catch (err) {
+                }
+            }
+        }
 
         await generateAndSendOtp(email, pool);
 
@@ -59,12 +68,6 @@ export const register = async (req, res) => {
             message: 'OTP sent to your email.',
         });
     } catch (err) {
-         if (profilePicPath) {
-            fs.unlink(profilePicPath, (unlinkErr) => {
-                if (unlinkErr) console.error('Error deleting local file after error:', unlinkErr);
-            });
-        }
-        console.error('Error while register:', err);
         return handleServerError(res, err);
     }
 };
@@ -96,7 +99,6 @@ export const verifyOtp = async (req, res) => {
 
         return generateToken(res, userResponse, 'Registered successfully');
     } catch (err) {
-        console.error('Error verifying OTP:', err);
         return handleServerError(res, err);
     }
 };
@@ -120,7 +122,6 @@ export const resendOtp = async (req, res) => {
             message: 'OTP resent to your email.',
         });
     } catch (err) { 
-        console.error('Error resending OTP:', err);
         return handleServerError(res, err);
     }
 };
@@ -155,7 +156,6 @@ export const login = async (req, res) => {
 
         return generateToken(res, userResponse, 'Login successful');
     } catch (err) {
-        console.error('Error logging in:', err);
         return handleServerError(res, err);
     }
 };
@@ -164,7 +164,6 @@ export const logout = async (req, res) => {
     try {
         return deleteToken(res, 'Logged out successfully');
     } catch (err) {
-        console.error('Error logging out:', err);
         return handleServerError(res, err);
     }
 };
@@ -198,7 +197,6 @@ export const changePassword = async (req, res) => {
             message: 'Password changes successfully',
         });
     } catch (error) {
-        console.error('Error changing password:', error);
         return handleServerError(res, error);
     }
 };
@@ -243,7 +241,6 @@ export const forgetPassword = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error in forgetPassword:', error);
         return handleServerError(res, error);
     }
 };
@@ -277,7 +274,6 @@ export const resetPassword = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error in resetPassword:', error);
         return handleServerError(res, error);
     }
 };
@@ -298,20 +294,21 @@ export const myProfile = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 profile_picture: user.profile_picture,
+                profile_picture_mime_type: user.profile_picture_mime_type,
+                profile_picture_data: user.profile_picture_data,
                 bio: user.bio,
                 role: user.role,
                 password: user.password
             }
         });
     } catch (error) {
-        console.error('Error fetching user profile:', error);
         return handleServerError(res, error);
     }
 };
 
 export const updateProfile = async (req, res) => {
     try {
-        const { name, bio } = req.body;
+        const { name, bio, profilePicData } = req.body;
         const email = req.user.email;
 
         const userResult = await pool.query(getUserByEmailQuery, [email]);
@@ -324,38 +321,32 @@ export const updateProfile = async (req, res) => {
         const updatedName = name || user.name;
         const updatedBio = bio || user.bio;
 
-        let profilePicUrl = user.profile_picture;
-        let profilePicPath = null;
+        if (profilePicData && profilePicData.image_data && profilePicData.mime_type) {
+            try {
+                await pool.query(
+                    `DELETE FROM file_storage WHERE table_name = 'users' AND table_id = $1`,
+                    [user.user_id]
+                );
 
-        if (req.files && req.files.profilePic && req.files.profilePic.length > 0) {
-            profilePicPath = req.files.profilePic[0].path;
-
-            if (user.profile_picture) {
-                const urlParts = user.profile_picture.split('/');
-                const fileName = urlParts[urlParts.length - 1];
-                const [publicId] = fileName.split('.'); 
-                const folder = 'profile_pics';
-                const publicIdWithFolder = `${folder}/${publicId}`;
-                try {
-                    await deleteFromCloudinary(publicIdWithFolder);
-                } catch (err) {
-                    console.error('Error deleting previous profile pic from Cloudinary:', err);
-                }
+                const fileBuffer = Buffer.from(profilePicData.image_data, 'base64');
+                
+                await pool.query(insertFileStorage, [
+                    'users',
+                    user.user_id,
+                    profilePicData.filename || 'profile.jpg',
+                    profilePicData.mime_type,
+                    fileBuffer
+                ]);
+            } catch (err) {
+                return res.status(500).json({ success: false, message: 'Failed to save profile picture' });
             }
-
-            const uploadResult = await uploadToClodinary(profilePicPath, 'profile_pics');
-            profilePicUrl = uploadResult.secure_url;
-
-            fs.unlink(profilePicPath, (err) => {
-                if (err) console.error('Error deleting local file:', err);
-            });
         }
 
         await pool.query(
             `UPDATE users
-             SET name = $1, bio = $2, profile_picture = $3
-             WHERE email = $4`,
-            [updatedName, updatedBio, profilePicUrl, email]
+             SET name = $1, bio = $2
+             WHERE email = $3`,
+            [updatedName, updatedBio, email]
         );
 
         const updatedUserResult = await pool.query(getUserProfileByEmail, [email]);
@@ -364,6 +355,7 @@ export const updateProfile = async (req, res) => {
         }
 
         const updatedUser = updatedUserResult.rows[0];
+
         return res.status(200).json({
             success: true,
             message: 'Profile updated successfully.',
@@ -371,13 +363,14 @@ export const updateProfile = async (req, res) => {
                 name: updatedUser.name,
                 email: updatedUser.email,
                 profile_picture: updatedUser.profile_picture,
+                profile_picture_mime_type: updatedUser.profile_picture_mime_type,
+                profile_picture_data: updatedUser.profile_picture_data,
                 bio: updatedUser.bio,
                 role: updatedUser.role,
                 password: updatedUser.password
             }
         });
     } catch (error) {
-        console.error('Error updating profile:', error);
         return handleServerError(res, error);
     }
 };

@@ -5,7 +5,8 @@ import { categoryApi } from "../features/api/categoryApi";
 import { subCategoryApi } from "../features/api/subCategoryApi";
 import { recipeApi } from "../features/api/recipeApi";
 import { ingredientApi } from "../features/api/ingredientApi";
-import { bannerApi } from '../features/api/bannerApi'
+import { bannerApi } from '../features/api/bannerApi';
+import { searchApi } from '../features/api/searchApi';
 
 export const appStore = configureStore({
     reducer: rootReducer,
@@ -16,7 +17,8 @@ export const appStore = configureStore({
             subCategoryApi.middleware,
             recipeApi.middleware,
             ingredientApi.middleware,
-            bannerApi.middleware
+            bannerApi.middleware,
+            searchApi.middleware
         )
 });
 

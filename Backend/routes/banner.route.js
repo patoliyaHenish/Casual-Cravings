@@ -9,13 +9,13 @@ import {
   getHeroBanner
 } from '../controllers/banner.controller.js'
 import isAuthenticated from '../middlewares/auth.middleware.js'
-import { checkRole } from '../utils/helper.js'
-import { upload } from '../utils/multer.js'
+import { checkRole, validate } from '../utils/helper.js'
+import { createBannerValidation, updateBannerValidation } from '../validations/bannerValidation.js'
 
 const router = Router()
 
-router.post('/', isAuthenticated, checkRole(['admin']), upload.fields([{name: 'bannerImage', maxCount: 1}]), createBanner)
-router.put('/:id', isAuthenticated, checkRole(['admin']), upload.fields([{name: 'bannerImage', maxCount: 1}]), updateBanner)
+router.post('/', isAuthenticated, checkRole(['admin']), validate(createBannerValidation), createBanner)
+router.put('/:id', isAuthenticated, checkRole(['admin']), validate(updateBannerValidation), updateBanner)
 router.delete('/:id', isAuthenticated, checkRole(['admin']), deleteBanner)
 router.get('/', isAuthenticated, checkRole(['admin']), getAllBanners)
 router.get('/hero', getHeroBanner)

@@ -12,9 +12,8 @@ import {
 } from '../../../features/api/recipeApi';
 import { useGetRecipeCategoriesQuery } from '../../../features/api/categoryApi';
 import { useGetAllRecipeSubCategorieDetailsQuery } from '../../../features/api/subCategoryApi';
-
 import { Button, FormControl, Select, MenuItem } from '@mui/material';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import {
   DataTable,
   PageHeader,
@@ -314,7 +313,6 @@ const Recipe = () => {
       await updateRecipeAdminApprovedStatus({ id: recipeId, admin_approved_status: newStatus }).unwrap();
       toast.success('Admin approved status updated successfully');
     } catch (error) {
-      console.error('Error updating admin approved status:', error);
       toast.error(error?.data?.message || 'Failed to update admin approved status');
     }
   };
@@ -324,7 +322,6 @@ const Recipe = () => {
       await updateRecipePublicApprovedStatus({ id: recipeId, public_approved: newStatus }).unwrap();
       toast.success('Public approved status updated successfully');
     } catch (error) {
-      console.error('Error updating public approved status:', error);
       toast.error(error?.data?.message || 'Failed to update public approved status');
     }
   };
@@ -349,6 +346,7 @@ const Recipe = () => {
         keywords: Array.isArray(r.keywords) ? r.keywords : [],
         video_url: r.video_url || '',
         image_url: r.image_url || '',
+        image: r.image || '',
       });
     }
   }, [editId, editRecipeData]);
@@ -358,37 +356,19 @@ const Recipe = () => {
     setAddOpen(false);
   };
 
-  const handleAddSubmit = async (values, { resetForm }, imageFile) => {
+  const handleAddSubmit = async (values, { resetForm }) => {
   try {
-    const formData = new FormData();
+    const recipeData = {
+      ...values,
+      sub_category_id: values.sub_category_id ? Number(values.sub_category_id) : null,
+      imageData: values.imageData
+    };
 
-    formData.append('ingredients', JSON.stringify(values.ingredients));
-    formData.append('recipe_instructions', JSON.stringify(values.recipe_instructions));
-    (values.keywords || []).forEach((kw) => {
-      formData.append('keywords[]', kw);
-    });
-
-    Object.entries(values).forEach(([key, value]) => {
-      if (!['ingredients', 'recipe_instructions', 'keywords'].includes(key)) {
-        if (key === 'sub_category_id') {
-          const numValue = Number(value);
-          formData.append(key, isNaN(numValue) || numValue === 0 ? null : numValue);
-        } else {
-          formData.append(key, value);
-        }
-      }
-    });
-
-    if (imageFile) {
-      formData.append('recipeImage', imageFile);
-    }
-
-    await createRecipeByAdmin(formData).unwrap();
+    await createRecipeByAdmin(recipeData).unwrap();
     toast.success('Recipe added successfully');
     handleAddClose();
     resetForm();
   } catch (error) {
-    console.error('Error adding recipe:', error);
     toast.error(error?.data?.message || 'Failed to add recipe');
   }
 };
@@ -401,38 +381,23 @@ const Recipe = () => {
       toast.success('Recipe deleted successfully');
       setDeleteId(null);
     } catch (error) {
-      console.error('Error deleting recipe:', error);
       toast.error(error?.data?.message || 'Failed to delete recipe');
     }
   };
 
-  const handleEditSubmit = async (values, { resetForm }, imageFile) => {
+  const handleEditSubmit = async (values, { resetForm }) => {
     try {
-      const formData = new FormData();
-      formData.append('ingredients', JSON.stringify(values.ingredients));
-      formData.append('recipe_instructions', JSON.stringify(values.recipe_instructions));
-      (values.keywords || []).forEach((kw) => {
-        formData.append('keywords[]', kw);
-      });
-      Object.entries(values).forEach(([key, value]) => {
-        if (!['ingredients', 'recipe_instructions', 'keywords'].includes(key)) {
-          if (key === 'sub_category_id') {
-            const numValue = Number(value);
-            formData.append(key, isNaN(numValue) || numValue === 0 ? null : numValue);
-          } else {
-            formData.append(key, value);
-          }
-        }
-      });
-      if (imageFile) {
-        formData.append('recipeImage', imageFile);
-      }
-      await updateRecipeByAdmin({ id: editId, formData }).unwrap();
+      const recipeData = {
+        ...values,
+        sub_category_id: values.sub_category_id ? Number(values.sub_category_id) : null,
+        imageData: values.imageData
+      };
+
+      await updateRecipeByAdmin({ id: editId, inputData: recipeData }).unwrap();
       toast.success('Recipe updated successfully');
       setEditId(null);
       resetForm();
     } catch (error) {
-      console.error('Error updating recipe:', error);
       toast.error(error?.data?.message || 'Failed to update recipe');
     }
   };
@@ -446,11 +411,11 @@ const Recipe = () => {
     },
     { 
       header: 'Image', 
-      field: 'image_url', 
+      field: 'image', 
       render: (row) => (
-        row.image_url ? (
+        row.image ? (
           <img
-            src={row.image_url}
+            src={row.image}
             alt={row.title}
             className="w-15 h-10 object-cover rounded"
           />
@@ -539,7 +504,14 @@ const Recipe = () => {
       field: 'nutrition',
       render: (row) => (
         <button
-          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs"
+          className="px-3 py-1 rounded text-xs font-medium transition"
+          style={{
+            backgroundColor: 'var(--btn-secondary)',
+            color: '#ffffff',
+            '&:hover': {
+              backgroundColor: 'var(--btn-secondary-hover)'
+            }
+          }}
           onClick={() => { 
             setNutritionRecipeId(row.recipe_id); 
             setNutritionModalOpen(true); 
@@ -576,7 +548,14 @@ const Recipe = () => {
             label="Search recipes"
           />
           <button
-            className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition"
+            className="px-4 py-2 rounded transition font-semibold"
+            style={{
+              backgroundColor: 'var(--btn-primary)',
+              color: '#ffffff',
+              '&:hover': {
+                backgroundColor: 'var(--btn-primary-hover)'
+              }
+            }}
             onClick={() => setShowFilters((v) => !v)}
             type="button"
           >
@@ -585,10 +564,23 @@ const Recipe = () => {
           {showFilters && (
             <>
               <div className="fixed inset-0 bg-black bg-opacity-20 z-40" onClick={() => setShowFilters(false)} />
-              <div ref={filterRef} className="fixed left-1/2 top-28 z-50 -translate-x-1/2 p-4 bg-white rounded shadow-lg flex flex-col gap-2 min-w-[260px] border border-orange-200">
+              <div 
+                ref={filterRef} 
+                className="fixed left-1/2 top-28 z-50 -translate-x-1/2 p-4 rounded shadow-lg flex flex-col gap-2 min-w-[260px]"
+                style={{
+                  backgroundColor: 'var(--card-bg)',
+                  border: '1px solid var(--border-color)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
                 <label className="font-semibold">Category</label>
                 <select
                   className="border rounded px-2 py-1"
+                  style={{
+                    backgroundColor: 'var(--card-bg)',
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)'
+                  }}
                   value={categoryName}
                   onChange={e => { setCategoryName(e.target.value); setPage(1); }}
                 >
@@ -600,6 +592,11 @@ const Recipe = () => {
                 <label className="font-semibold">Subcategory</label>
                 <select
                   className="border rounded px-2 py-1"
+                  style={{
+                    backgroundColor: 'var(--card-bg)',
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)'
+                  }}
                   value={subCategoryName}
                   onChange={e => { setSubCategoryName(e.target.value); setPage(1); }}
                 >
@@ -611,6 +608,11 @@ const Recipe = () => {
                 <label className="font-semibold">Added By User?</label>
                 <select
                   className="border rounded px-2 py-1"
+                  style={{
+                    backgroundColor: 'var(--card-bg)',
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)'
+                  }}
                   value={addedByUser}
                   onChange={e => { setAddedByUser(e.target.value); setPage(1); }}
                 >
@@ -621,6 +623,11 @@ const Recipe = () => {
                 <label className="font-semibold">Added By Admin?</label>
                 <select
                   className="border rounded px-2 py-1"
+                  style={{
+                    backgroundColor: 'var(--card-bg)',
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)'
+                  }}
                   value={addedByAdmin}
                   onChange={e => { setAddedByAdmin(e.target.value); setPage(1); }}
                 >
@@ -631,6 +638,11 @@ const Recipe = () => {
                 <label className="font-semibold">Admin Approved Status</label>
                 <select
                   className="border rounded px-2 py-1"
+                  style={{
+                    backgroundColor: 'var(--card-bg)',
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)'
+                  }}
                   value={adminApprovedStatus}
                   onChange={e => { setAdminApprovedStatus(e.target.value); setPage(1); }}
                 >
@@ -642,6 +654,11 @@ const Recipe = () => {
                 <label className="font-semibold">Public Approved?</label>
                 <select
                   className="border rounded px-2 py-1"
+                  style={{
+                    backgroundColor: 'var(--card-bg)',
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)'
+                  }}
                   value={publicApproved}
                   onChange={e => { setPublicApproved(e.target.value); setPage(1); }}
                 >
@@ -650,7 +667,15 @@ const Recipe = () => {
                   <option value="false">No</option>
                 </select>
                 <button
-                  className="mt-2 bg-gray-200 hover:bg-gray-300 rounded px-3 py-1 text-sm"
+                  className="mt-2 rounded px-3 py-1 text-sm font-medium transition"
+                  style={{
+                    backgroundColor: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)',
+                    '&:hover': {
+                      backgroundColor: 'var(--btn-secondary)',
+                      color: '#ffffff'
+                    }
+                  }}
                   onClick={() => {
                     setCategoryName('');
                     setSubCategoryName('');
@@ -671,10 +696,18 @@ const Recipe = () => {
           )}
           <Button
             variant="contained"
-            color="warning"
             onClick={handleAddOpen}
             className="w-full sm:w-auto"
-            sx={{ mt: { xs: 1, sm: 0 } }}
+            sx={{ 
+              mt: { xs: 1, sm: 0 },
+              backgroundColor: 'var(--btn-primary)',
+              color: '#ffffff',
+              fontWeight: 600,
+              '&:hover': {
+                backgroundColor: 'var(--btn-primary-hover)'
+              },
+              transition: 'all 0.3s ease'
+            }}
           >
             Add Recipe
           </Button>
@@ -906,11 +939,37 @@ const Recipe = () => {
                     </div>
                  </>
               ) : (
-                <div className="flex flex-col items-center justify-center h-32 text-gray-500 text-lg">
+                <div 
+                  className="flex flex-col items-center justify-center h-32 text-lg"
+                  style={{
+                    color: 'var(--text-secondary)',
+                    transition: 'color 0.3s ease'
+                  }}
+                >
                   <div className="mb-2 flex space-x-1">
-                    <span className="inline-block w-2 h-2 bg-orange-400 rounded-full animate-ellipsis"></span>
-                    <span className="inline-block w-2 h-2 bg-orange-400 rounded-full animate-ellipsis" style={{ animationDelay: '0.2s' }}></span>
-                    <span className="inline-block w-2 h-2 bg-orange-400 rounded-full animate-ellipsis" style={{ animationDelay: '0.4s' }}></span>
+                    <span 
+                      className="inline-block w-2 h-2 rounded-full animate-ellipsis"
+                      style={{
+                        backgroundColor: 'var(--btn-primary)',
+                        transition: 'background-color 0.3s ease'
+                      }}
+                    ></span>
+                    <span 
+                      className="inline-block w-2 h-2 rounded-full animate-ellipsis" 
+                      style={{ 
+                        animationDelay: '0.2s',
+                        backgroundColor: 'var(--btn-primary)',
+                        transition: 'background-color 0.3s ease'
+                      }}
+                    ></span>
+                    <span 
+                      className="inline-block w-2 h-2 rounded-full animate-ellipsis" 
+                      style={{ 
+                        animationDelay: '0.4s',
+                        backgroundColor: 'var(--btn-primary)',
+                        transition: 'background-color 0.3s ease'
+                      }}
+                    ></span>
                   </div>
                   <div>Loading nutrition info...</div>
                   <style>{`

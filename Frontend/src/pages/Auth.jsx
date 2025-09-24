@@ -5,12 +5,14 @@ import {
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useRegisterUserMutation, useLoginUserMutation, useForgetPasswordMutation, useMyProfileQuery } from '../features/api/authApi';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import VerifyOtp from '../components/VerifyOtp';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import CropImage from '../components/CropImage';
+import { convertImageFileToBase64 } from '../utils/helper';
 
 const registerSchema = Yup.object().shape({
   name: Yup.string().required('Name is required').max(255),
@@ -61,22 +63,31 @@ const Auth = () => {
   const handleGoogleLogin = () => {
     try {
       window.location.href = `${import.meta.env.VITE_APP_API_URL}/api/auth/google`;
-    } catch (error) {
-      console.error("Google login error:", error);
+    } catch {
       toast.error("Failed to initiate Google login");
     }
 };
 
   const handleRegister = async (values, { setSubmitting, resetForm }) => {
     try {
-      const formData = new FormData();
-      formData.append('name', values.name);
-      formData.append('email', values.email);
-      formData.append('password', values.password);
+      const registerData = {
+        name: values.name,
+        email: values.email,
+        password: values.password
+      };
+
       if (values.profilePic) {
-        formData.append('profilePic', values.profilePic);
+        const imageData = await convertImageFileToBase64(values.profilePic);
+        if (imageData) {
+          registerData.profilePicData = {
+            filename: imageData.filename,
+            mime_type: imageData.mime_type,
+            image_data: imageData.image_data
+          };
+        }
       }
-      const res = await registerUser(formData).unwrap();
+
+      const res = await registerUser(registerData).unwrap();
       if (res.user) {
         setUser(res.user);
       }
@@ -124,6 +135,59 @@ const Auth = () => {
       setForgetEmailError(err?.data?.message || 'Failed to send reset link');
     }
   };
+
+  const [registerRawImage, setRegisterRawImage] = useState(null);
+  const [registerShowCropDialog, setRegisterShowCropDialog] = useState(false);
+  const [registerPreview, setRegisterPreview] = useState('');
+  const [registerProfilePic, setRegisterProfilePic] = useState(null);
+
+  const handleRegisterFileChange = (e, setFieldValue) => {
+    const file = e.target.files[0];
+    if (file) {
+      setRegisterRawImage(URL.createObjectURL(file));
+      setRegisterProfilePic(file);
+      setRegisterShowCropDialog(true);
+      setFieldValue('profilePic', file);
+    }
+  };
+
+  const getCroppedImg = async (imageSrc, crop) => {
+    return new Promise((resolve) => {
+      const image = new window.Image();
+      image.src = imageSrc;
+      image.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = crop.width;
+        canvas.height = crop.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(
+          image,
+          crop.x,
+          crop.y,
+          crop.width,
+          crop.height,
+          0,
+          0,
+          crop.width,
+          crop.height
+        );
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/jpeg');
+      };
+    });
+  };
+
+  const handleRegisterCropComplete = async (croppedAreaPixels) => {
+    if (registerRawImage && croppedAreaPixels) {
+      const croppedBlob = await getCroppedImg(registerRawImage, croppedAreaPixels);
+      const croppedUrl = URL.createObjectURL(croppedBlob);
+      setRegisterPreview(croppedUrl);
+      const croppedFile = new File([croppedBlob], registerProfilePic?.name || 'profile.jpg', { type: 'image/jpeg' });
+      setRegisterProfilePic(croppedFile);
+    }
+  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center px-2 sm:px-4">
@@ -173,7 +237,12 @@ const Auth = () => {
             <Formik
               initialValues={{ name: '', email: '', password: '', profilePic: null }}
               validationSchema={registerSchema}
-              onSubmit={handleRegister}
+              onSubmit={async (values, actions) => {
+                if (registerProfilePic) {
+                  values.profilePic = registerProfilePic;
+                }
+                await handleRegister(values, actions);
+              }}
             >
               {({ values, errors, touched, handleChange, handleBlur, setFieldValue, isSubmitting }) => (
                 <Form className="flex flex-col gap-4 mt-6">
@@ -241,13 +310,27 @@ const Auth = () => {
                       name="profilePic"
                       type="file"
                       accept="image/*"
-                      onChange={event => setFieldValue('profilePic', event.currentTarget.files[0])}
+                      onChange={event => handleRegisterFileChange(event, setFieldValue)}
                       className="block w-full text-sm text-[#3B2200] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#F97C1B] file:text-[#FFF8ED] hover:file:bg-[#FFB15E] transition"
                     />
                     {touched.profilePic && errors.profilePic && (
                       <div className="text-red-500 text-xs mt-1">{errors.profilePic}</div>
                     )}
                   </div>
+                  {registerPreview && (
+                    <div className="flex flex-col items-center mt-2">
+                      <img src={registerPreview} alt="Preview" style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', border: '2px solid #E06B00' }} />
+                    </div>
+                  )}
+                  <CropImage
+                    open={registerShowCropDialog}
+                    imageSrc={registerRawImage}
+                    onClose={() => setRegisterShowCropDialog(false)}
+                    onCropComplete={async (croppedAreaPixels) => {
+                      await handleRegisterCropComplete(croppedAreaPixels);
+                      setRegisterShowCropDialog(false);
+                    }}
+                  />
                   <Button
                     type="submit"
                     variant="contained"
@@ -378,16 +461,18 @@ const Auth = () => {
             </Button>
           </DialogActions>
         </Dialog>
-        <Box className="flex flex-col gap-2 mb-4 mt-4">
-          <Button
-            variant="outlined"
-            fullWidth
-            sx={{ borderColor: '#4285F4', color: '#4285F4', fontWeight: 'bold' }}
-            onClick={handleGoogleLogin}
-          >
-            Continue with Google
-          </Button>
-        </Box>
+        {!showOtp && (
+          <Box className="flex flex-col gap-2 mb-4 mt-4">
+            <Button
+              variant="outlined"
+              fullWidth
+              sx={{ borderColor: '#4285F4', color: '#4285F4', fontWeight: 'bold' }}
+              onClick={handleGoogleLogin}
+            >
+              Continue with Google
+            </Button>
+          </Box>
+        )}
       </Paper>
     </div>
   );

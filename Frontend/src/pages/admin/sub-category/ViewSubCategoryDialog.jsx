@@ -5,9 +5,7 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Typography,
   CircularProgress,
-  Box,
 } from '@mui/material';
 import { useGetRecipeSubCategoryByIdMutation } from '../../../features/api/subCategoryApi';
 import { useState, useEffect } from 'react';
@@ -23,7 +21,6 @@ const ViewSubCategoryDialog = ({ open, onClose, subCategoryId }) => {
           const result = await getSubCategoryById({ subCategoryId }).unwrap();
           setData(result.data);
         } catch (error) {
-          console.error('Failed to fetch sub-category:', error);
           setData(null);
         }
       }
@@ -33,52 +30,35 @@ const ViewSubCategoryDialog = ({ open, onClose, subCategoryId }) => {
   }, [subCategoryId, open, getSubCategoryById]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm">
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Sub-Category Details</DialogTitle>
-              <DialogContent dividers className="custom-scrollbar max-h-[500px]">
+      <DialogContent dividers>
         {isLoading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight={120}>
+          <div className="flex justify-center items-center h-32">
             <CircularProgress color="warning" />
-          </Box>
+          </div>
         ) : !data ? (
-          <Typography color="textSecondary" align="center">
-            No data found.
-          </Typography>
+          <div className="text-gray-500">No details found.</div>
         ) : (
-          <Box display="flex" flexDirection="column" gap={2}>
-            <Box>
-              <Typography variant="subtitle2" color="textSecondary">
-                Name
-              </Typography>
-              <Typography variant="body1">{data.name}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="subtitle2" color="textSecondary">
-                Category
-              </Typography>
-              <Typography variant="body1">{data.category_name}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="subtitle2" color="textSecondary">
-                Description
-              </Typography>
-              <Typography variant="body1">{data.description}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="subtitle2" color="textSecondary">
-                Image
-              </Typography>
+          <div className="space-y-4">
+            <div>
+              <span className="font-semibold">Name:</span> {data.name}
+            </div>
+            <div>
+              <span className="font-semibold">Category:</span> {data.category_name}
+            </div>
+            <div>
+              <span className="font-semibold">Description:</span> {data.description}
+            </div>
+            <div>
+              <span className="font-semibold">Image:</span><br />
               {data.image ? (
-                <img
-                  src={data.image}
-                  alt={data.name}
-                  className="w-30 h-30 object-cover rounded-lg mt-2"
-                />
+                <img src={data.image} alt={data.name} className="h-32 w-32 object-cover rounded mt-2" />
               ) : (
-                <Typography color="textSecondary">No Image</Typography>
+                <span className="text-gray-400">No Image</span>
               )}
-            </Box>
-          </Box>
+            </div>
+          </div>
         )}
       </DialogContent>
       <DialogActions>

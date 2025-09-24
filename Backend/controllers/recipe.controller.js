@@ -1,15 +1,26 @@
+import fs from 'fs';
 import { pool } from "../config/db.js";
-import { handleServerError, handleValidationError, handleNotFoundError } from "../utils/erroHandler.js";
-import { checkRecipeTitleExistsQuery, getAllRecipesCountQuery, getAllRecipesQuery, insertRecipeQuery, selectRecipeByIdQuery, updateRecipeInstructionsQuery, deleteRecipeQuery, updateRecipeQuery } from "../query/recipe/recipe.js";
-import { checkRecipeSubCategoryExistsQuery, checkSubCategoryExistsQuery, checkSubCategoriesExistForCategoryQuery } from "../query/sub category/subCategory.js";
-import { getYouTubeThumbnail, safeDeleteLocalFile, uploadImageAndCleanup } from "../utils/helper.js";
-import { checkRecipeCategoryExistsByIdQuery } from "../query/recipe category/recipeCategory.js";
-import { insertRecipeInstructionQuery, getRecipeInstructionsByRecipeIdQuery } from "../query/recipe instruction/recipeInstruction.js";
-import { insertRecipeIngredientQuery, deleteRecipeIngredientsQuery, getRecipeIngredientsQuery } from "../query/recipe ingredient/recipeIngredient.js";
-import { uploadToClodinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import {
+    checkRecipeTitleExistsQuery,
+    deleteRecipeQuery,
+    getAllRecipesCountQuery,
+    getAllRecipesQuery,
+    getMostUsedKeywordsQuery,
+    getPublicRecipesByKeywordsQuery,
+    insertRecipeQuery,
+    selectRecipeByIdQuery,
+    updateRecipeInstructionsQuery,
+    updateRecipeQuery
+} from "../query/recipe.js";
+import { checkRecipeCategoryExistsByIdQuery } from "../query/recipeCategory.js";
+import { deleteRecipeIngredientsQuery, getRecipeIngredientsQuery } from "../query/recipeIngredient.js";
+import { getRecipeInstructionsByRecipeIdQuery } from "../query/recipeInstruction.js";
+import { checkRecipeSubCategoryExistsQuery, checkSubCategoriesExistForCategoryQuery, checkSubCategoryExistsQuery } from "../query/subCategory.js";
+import { insertFileStorage } from "../query/fileStorage.js";
+import { handleNotFoundError, handleServerError, handleValidationError } from "../utils/erroHandler.js";
+import { getYouTubeThumbnail } from "../utils/helper.js";
 
 export const createRecipeByAdmin = async (req, res) => {
-    let imagePath = null;
     try {
         const {
             category_id,
@@ -23,39 +34,16 @@ export const createRecipeByAdmin = async (req, res) => {
             serving_size,
             recipe_instructions,
             keywords,
-            ingredients
+            ingredients,
+            imageData
         } = req.body;
 
         const user_id = req.user.userId;
 
         let final_image_url = image_url || null;
-        let parsed_recipe_instructions = recipe_instructions;
-        let parsed_keywords = keywords;
-        let parsed_ingredients = ingredients;
-
-        try {
-            if (typeof recipe_instructions === "string") {
-                parsed_recipe_instructions = JSON.parse(recipe_instructions);
-            }
-        } catch (error) {
-            return handleValidationError(res, "Invalid JSON format for instructions");
-        }
-
-        try {
-            if (typeof ingredients === "string") {
-                parsed_ingredients = JSON.parse(ingredients);
-            }
-        } catch (error) {
-            return handleValidationError(res, "Invalid JSON format for ingredients");
-        }
-
-        try {
-            if (typeof keywords === "string") {
-                parsed_keywords = JSON.parse(keywords);
-            }
-        } catch (error) {
-            return handleValidationError(res, "Invalid JSON format for keywords");
-        }
+        const parsed_recipe_instructions = recipe_instructions;
+        const parsed_keywords = keywords;
+        const parsed_ingredients = ingredients;
 
         if (category_id) {
             const categoryResult = await pool.query(checkRecipeCategoryExistsByIdQuery, [category_id]);
@@ -65,10 +53,6 @@ export const createRecipeByAdmin = async (req, res) => {
 
             const subCategoriesResult = await pool.query(checkSubCategoriesExistForCategoryQuery, [category_id]);
             const subCategoriesExist = parseInt(subCategoriesResult.rows[0].count) > 0;
-
-            if (subCategoriesExist && !sub_category_id) {
-                return handleValidationError(res, "Sub-category is required for this category");
-            }
 
             if (!subCategoriesExist && sub_category_id && sub_category_id !== null && sub_category_id !== 'null' && sub_category_id !== 0) {
                 return handleValidationError(res, "No sub-categories exist for this category");
@@ -92,7 +76,7 @@ export const createRecipeByAdmin = async (req, res) => {
             }
         }
 
-        if (!req.files || !req.files.recipeImage || req.files.recipeImage.length === 0) {
+        if (!imageData) {
             if (video_url) {
                 const thumbnailUrl = getYouTubeThumbnail(video_url);
                 if (thumbnailUrl) {
@@ -136,11 +120,6 @@ export const createRecipeByAdmin = async (req, res) => {
             return handleValidationError(res, "Each keyword must be a non-empty string");
         }
 
-        if (req.files && req.files.recipeImage && req.files.recipeImage.length > 0) {
-            imagePath = req.files.recipeImage[0].path;
-            final_image_url = await uploadImageAndCleanup(imagePath, 'recipe_images', uploadToClodinary);
-        }
-
         const dbSubCategoryId = (sub_category_id && sub_category_id !== null && sub_category_id !== 'null' && sub_category_id !== 0) ? sub_category_id : null;
 
         const recipeResult = await pool.query(
@@ -170,19 +149,38 @@ export const createRecipeByAdmin = async (req, res) => {
 
         const recipe = recipeResult.rows[0];
 
-        const instructionIds = [];
-        for (let i = 0; i < parsed_recipe_instructions.length; i++) {
-            const { rows } = await pool.query(
-                insertRecipeInstructionQuery,
-                [recipe.recipe_id, i + 1, parsed_recipe_instructions[i]]
-            );
-            instructionIds.push(rows[0].instruction_id);
+        if (imageData && imageData.filename && imageData.mime_type && imageData.image_data) {
+            const imageBuffer = Buffer.from(imageData.image_data, 'base64');
+            
+            await pool.query(insertFileStorage, [
+                'recipe',
+                recipe.recipe_id,
+                imageData.filename,
+                imageData.mime_type,
+                imageBuffer
+            ]);
         }
 
-        await pool.query(
-            updateRecipeInstructionsQuery,
-            [instructionIds, recipe.recipe_id]
-        );
+        if (parsed_recipe_instructions.length > 0) {
+            const instructionValues = parsed_recipe_instructions.map((instruction, index) => 
+                `(${recipe.recipe_id}, ${index + 1}, $${index + 1})`
+            ).join(', ');
+            
+            const instructionParams = parsed_recipe_instructions;
+            const batchInsertQuery = `
+                INSERT INTO recipe_instruction (recipe_id, step_number, instruction_text) 
+                VALUES ${instructionValues} 
+                RETURNING instruction_id
+            `;
+            
+            const instructionResult = await pool.query(batchInsertQuery, instructionParams);
+            const instructionIds = instructionResult.rows.map(row => row.instruction_id);
+            
+            await pool.query(
+                updateRecipeInstructionsQuery,
+                [instructionIds, recipe.recipe_id]
+            );
+        }
 
         if (parsed_ingredients && Array.isArray(parsed_ingredients) && parsed_ingredients.length > 0) {
             const uniqueIngredients = [];
@@ -197,14 +195,24 @@ export const createRecipeByAdmin = async (req, res) => {
                 }
             }
             
-            for (const ingredient of uniqueIngredients) {
-                await pool.query(insertRecipeIngredientQuery, [
-                    recipe.recipe_id,
+            if (uniqueIngredients.length > 0) {
+                const ingredientValues = uniqueIngredients.map((ingredient, index) => 
+                    `(${recipe.recipe_id}, $${index * 4 + 1}, $${index * 4 + 2}, $${index * 4 + 3}, $${index * 4 + 4})`
+                ).join(', ');
+                
+                const ingredientParams = uniqueIngredients.flatMap(ingredient => [
                     ingredient.ingredient_id,
                     ingredient.quantity,
                     ingredient.quantity_display || ingredient.quantity,
                     ingredient.unit
                 ]);
+                
+                const batchIngredientQuery = `
+                    INSERT INTO recipe_ingredient (recipe_id, ingredient_id, quantity, quantity_display, unit) 
+                    VALUES ${ingredientValues}
+                `;
+                
+                await pool.query(batchIngredientQuery, ingredientParams);
             }
         }
 
@@ -219,8 +227,6 @@ export const createRecipeByAdmin = async (req, res) => {
             data: updatedRecipe.rows[0],
         });
     } catch (error) {
-        console.error("Error creating recipe:", error);
-        await safeDeleteLocalFile(imagePath);
         return handleServerError(res, error, "Failed to create recipe");
     }
 };
@@ -277,6 +283,21 @@ export const getAllRecipesForAdmin = async (req, res) => {
         );
         const recipes = result.rows;
 
+        for (const recipe of recipes) {
+            const imageResult = await pool.query(
+                'SELECT image_data, mime_type FROM file_storage WHERE table_name = $1 AND table_id = $2 LIMIT 1',
+                ['recipe', recipe.recipe_id]
+            );
+            
+            if (imageResult.rows.length > 0) {
+                const imageData = imageResult.rows[0];
+                const base64 = imageData.image_data.toString('base64');
+                recipe.image = `data:${imageData.mime_type};base64,${base64}`;
+            } else {
+                recipe.image = recipe.image_url;
+            }
+        }
+
         return res.status(200).json({
             success: true,
             data: recipes,
@@ -319,6 +340,19 @@ export const getRecipeByIdForAdmin = async (req, res) => {
             unit: row.unit
         }));
 
+        const imageResult = await pool.query(
+            'SELECT image_data, mime_type FROM file_storage WHERE table_name = $1 AND table_id = $2 LIMIT 1',
+            ['recipe', id]
+        );
+        
+        if (imageResult.rows.length > 0) {
+            const imageData = imageResult.rows[0];
+            const base64 = imageData.image_data.toString('base64');
+            recipe.image = `data:${imageData.mime_type};base64,${base64}`;
+        } else {
+            recipe.image = recipe.image_url;
+        }
+
         return res.status(200).json({
             success: true,
             data: recipe
@@ -341,6 +375,11 @@ export const deleteRecipeByAdmin = async (req, res) => {
             return handleNotFoundError(res, "Recipe not found");
         }
 
+        await pool.query(
+            'DELETE FROM file_storage WHERE table_name = $1 AND table_id = $2',
+            ['recipe', id]
+        );
+
         const deleteResult = await pool.query(deleteRecipeQuery, [id]);
 
         if (deleteResult.rowCount === 0) {
@@ -352,13 +391,11 @@ export const deleteRecipeByAdmin = async (req, res) => {
             message: "Recipe deleted successfully"
         });
     } catch (error) {
-        console.error("Error deleting recipe:", error);
         return handleServerError(res, error, "Failed to delete recipe");
     }
 };
 
 export const updateRecipeByAdmin = async (req, res) => {
-    let imagePath = null;
     try {
         const { id } = req.params;
         if (!id) {
@@ -381,49 +418,49 @@ export const updateRecipeByAdmin = async (req, res) => {
             serving_size = existingRecipe.serving_size,
             recipe_instructions = existingRecipe.recipe_instructions,
             keywords = existingRecipe.keywords,
-            ingredients
+            ingredients,
+            keepExistingImage = false,
+            imageRemoved = false,
+            imageData
         } = req.body;
-        try {
-            if (typeof recipe_instructions === "string") recipe_instructions = JSON.parse(recipe_instructions);
-        } catch (error) {
-            return handleValidationError(res, "Invalid JSON format for instructions");
+        
+        if (typeof keepExistingImage === 'string') {
+            keepExistingImage = keepExistingImage === 'true';
         }
-
-        try {
-            if (typeof ingredients === "string") ingredients = JSON.parse(ingredients);
-        } catch (error) {
-            return handleValidationError(res, "Invalid JSON format for ingredients");
+        
+        if (typeof imageRemoved === 'string') {
+            imageRemoved = imageRemoved === 'true';
         }
-
-        try {
-            if (typeof keywords === "string") keywords = JSON.parse(keywords);
-        } catch (error) {
-            return handleValidationError(res, "Invalid JSON format for keywords");
-        }
+        
         let final_image_url = image_url || existingRecipe.image_url;
 
-        if (req.files && req.files.recipeImage && req.files.recipeImage.length > 0) {
-            imagePath = req.files.recipeImage[0].path;
-            if (existingRecipe.image_url && existingRecipe.image_url.includes("res.cloudinary.com")) {
-                const urlParts = existingRecipe.image_url.split("/");
-                const publicIdWithExt = urlParts.slice(-2).join("/").split(".")[0];
-                await deleteFromCloudinary(publicIdWithExt);
-            }
-            final_image_url = await uploadImageAndCleanup(imagePath, 'recipe_images', uploadToClodinary);
-        } else {
-            if (image_url === '' || image_url === null) {
-                if (existingRecipe.image_url && existingRecipe.image_url.includes("res.cloudinary.com")) {
-                    const urlParts = existingRecipe.image_url.split("/");
-                    const publicIdWithExt = urlParts.slice(-2).join("/").split(".")[0];
-                    await deleteFromCloudinary(publicIdWithExt);
-                }
+        if (keepExistingImage !== true) {
+            await pool.query(
+                'DELETE FROM file_storage WHERE table_name = $1 AND table_id = $2',
+                ['recipe', id]
+            );
+        }
+
+        if (imageData && imageData.filename && imageData.mime_type && imageData.image_data) {
+            final_image_url = null;
+        }
+        else if (keepExistingImage === true) {
+            final_image_url = existingRecipe.image_url;
+        }
+        else {
+            if (imageRemoved === true || image_url === '' || image_url === null || image_url === undefined) {
                 if (video_url) {
                     const thumbnailUrl = getYouTubeThumbnail(video_url);
-                    if (thumbnailUrl) {
-                        final_image_url = thumbnailUrl;
-                    } else {
-                        final_image_url = null;
-                    }
+                    final_image_url = thumbnailUrl || null;
+                } else {
+                    final_image_url = null;
+                }
+            } else if (image_url) {
+                final_image_url = image_url;
+            } else {
+                if (video_url) {
+                    const thumbnailUrl = getYouTubeThumbnail(video_url);
+                    final_image_url = thumbnailUrl || null;
                 } else {
                     final_image_url = null;
                 }
@@ -446,7 +483,7 @@ export const updateRecipeByAdmin = async (req, res) => {
                 keywords || [],
                 'approved',
                 true,
-                false,
+                existingRecipe.public_approved,
                 id
             ]
         );
@@ -454,13 +491,18 @@ export const updateRecipeByAdmin = async (req, res) => {
             return handleServerError(res, "Failed to update recipe");
         }
         await pool.query('DELETE FROM recipe_instruction WHERE recipe_id = $1', [id]);
-        if (Array.isArray(recipe_instructions)) {
-            for (let i = 0; i < recipe_instructions.length; i++) {
-                await pool.query(
-                    'INSERT INTO recipe_instruction (recipe_id, step_number, instruction_text) VALUES ($1, $2, $3)',
-                    [id, i + 1, recipe_instructions[i]]
-                );
-            }
+        if (Array.isArray(recipe_instructions) && recipe_instructions.length > 0) {
+            const instructionValues = recipe_instructions.map((instruction, index) => 
+                `(${id}, ${index + 1}, $${index + 1})`
+            ).join(', ');
+            
+            const instructionParams = recipe_instructions;
+            const batchInsertQuery = `
+                INSERT INTO recipe_instruction (recipe_id, step_number, instruction_text) 
+                VALUES ${instructionValues}
+            `;
+            
+            await pool.query(batchInsertQuery, instructionParams);
         }
 
         if (ingredients !== undefined) {
@@ -479,16 +521,38 @@ export const updateRecipeByAdmin = async (req, res) => {
                     }
                 }
                 
-                for (const ingredient of uniqueIngredients) {
-                    await pool.query(insertRecipeIngredientQuery, [
-                        id,
+                if (uniqueIngredients.length > 0) {
+                    const ingredientValues = uniqueIngredients.map((ingredient, index) => 
+                        `(${id}, $${index * 4 + 1}, $${index * 4 + 2}, $${index * 4 + 3}, $${index * 4 + 4})`
+                    ).join(', ');
+                    
+                    const ingredientParams = uniqueIngredients.flatMap(ingredient => [
                         ingredient.ingredient_id,
                         ingredient.quantity,
                         ingredient.quantity_display || ingredient.quantity,
                         ingredient.unit
                     ]);
+                    
+                    const batchIngredientQuery = `
+                        INSERT INTO recipe_ingredient (recipe_id, ingredient_id, quantity, quantity_display, unit) 
+                        VALUES ${ingredientValues}
+                    `;
+                    
+                    await pool.query(batchIngredientQuery, ingredientParams);
                 }
             }
+        }
+
+        if (imageData && imageData.filename && imageData.mime_type && imageData.image_data) {
+            const imageBuffer = Buffer.from(imageData.image_data, 'base64');
+            
+            await pool.query(insertFileStorage, [
+                'recipe',
+                id,
+                imageData.filename,
+                imageData.mime_type,
+                imageBuffer
+            ]);
         }
 
         const updatedRecipe = updateResult.rows[0];
@@ -498,8 +562,6 @@ export const updateRecipeByAdmin = async (req, res) => {
             data: updatedRecipe,
         });
     } catch (error) {
-        console.error("Error updating recipe:", error);
-        await safeDeleteLocalFile(imagePath);
         return handleServerError(res, error, "Failed to update recipe");
     }
 };
@@ -540,7 +602,6 @@ export const updateRecipeAdminApprovedStatus = async (req, res) => {
             data: updateResult.rows[0]
         });
     } catch (error) {
-        console.error("Error updating admin approved status:", error);
         return handleServerError(res, error, "Failed to update admin approved status");
     }
 };
@@ -578,23 +639,13 @@ export const updateRecipePublicApprovedStatus = async (req, res) => {
             data: updateResult.rows[0]
         });
     } catch (error) {
-        console.error("Error updating public approved status:", error);
         return handleServerError(res, error, "Failed to update public approved status");
     }
 };
 
 export const getMostUsedKeywords = async (req, res) => {
     try {
-        const result = await pool.query(`
-            SELECT 
-                unnest(keywords) as keyword,
-                COUNT(*) as usage_count
-            FROM recipe 
-            WHERE keywords IS NOT NULL AND array_length(keywords, 1) > 0
-            GROUP BY unnest(keywords)
-            ORDER BY usage_count DESC
-            LIMIT 20
-        `);
+        const result = await pool.query(getMostUsedKeywordsQuery);
 
         const keywords = result.rows.map(row => ({
             keyword: row.keyword,
@@ -611,21 +662,33 @@ export const getMostUsedKeywords = async (req, res) => {
 };
 
 export const getPublicRecipesByKeywords = async (req, res) => {
-  try {
-    let { keywords } = req.query
-    if (!keywords) return res.status(400).json({ error: 'Keywords are required' })
-    if (typeof keywords === 'string') {
-      try { keywords = JSON.parse(keywords) } catch { keywords = [keywords] }
+    try {
+        let { keywords } = req.query;
+        if (!keywords) {
+            return res.status(400).json({
+                success: false,
+                message: 'Keywords are required'
+            });
+        }
+
+        if (typeof keywords === 'string') {
+            try {
+                keywords = JSON.parse(keywords);
+            } catch {
+                keywords = [keywords];
+            }
+        }
+        if (!Array.isArray(keywords)) {
+            keywords = [keywords];
+        }
+
+        const result = await pool.query(getPublicRecipesByKeywordsQuery, [keywords]);
+
+        return res.status(200).json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        return handleServerError(res, error, "Failed to fetch recipes");
     }
-    if (!Array.isArray(keywords)) keywords = [keywords]
-    const result = await pool.query(
-      `SELECT * FROM recipe WHERE public_approved = true AND admin_approved_status = 'approved' AND (
-        keywords && $1
-      ) ORDER BY created_at DESC`,
-      [keywords]
-    )
-    res.json(result.rows)
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch recipes' })
-  }
 }

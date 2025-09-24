@@ -1,20 +1,18 @@
 export const insertBannerQuery = `
     INSERT INTO banner (
-        title, image_url, button_text, keywords, is_hero
+        title, button_text, keywords, is_hero
     ) VALUES (
-        $1, $2, $3, $4, $5
+        $1, $2, $3, $4
     ) RETURNING *;
 `;
 
 export const updateBannerQuery = `
     UPDATE banner SET
         title = $1,
-        image_url = $2,
-        button_text = $3,
-        keywords = $4,
-        is_hero = $5,
-        updated_at = CURRENT_TIMESTAMP
-    WHERE banner_id = $6
+        button_text = $2,
+        keywords = $3,
+        is_hero = $4
+    WHERE banner_id = $5
     RETURNING *;
 `;
 
@@ -23,15 +21,36 @@ export const deleteBannerQuery = `
 `;
 
 export const selectAllBannersQuery = `
-    SELECT * FROM banner ORDER BY created_at DESC;
+    SELECT 
+        b.*,
+        fs.filename as image_filename,
+        fs.mime_type as image_mime_type,
+        fs.image_data as image_data
+    FROM banner b
+    LEFT JOIN file_storage fs ON b.banner_id = fs.table_id AND fs.table_name = 'banner'
+    ORDER BY b.banner_id DESC;
 `;
 
 export const selectBannerByIdQuery = `
-    SELECT * FROM banner WHERE banner_id = $1;
+    SELECT 
+        b.*,
+        fs.filename as image_filename,
+        fs.mime_type as image_mime_type,
+        fs.image_data as image_data
+    FROM banner b
+    LEFT JOIN file_storage fs ON b.banner_id = fs.table_id AND fs.table_name = 'banner'
+    WHERE b.banner_id = $1;
 `;
 
 export const selectHeroBannerQuery = `
-    SELECT * FROM banner WHERE is_hero = true LIMIT 1;
+    SELECT 
+        b.*,
+        fs.filename as image_filename,
+        fs.mime_type as image_mime_type,
+        fs.image_data as image_data
+    FROM banner b
+    LEFT JOIN file_storage fs ON b.banner_id = fs.table_id AND fs.table_name = 'banner'
+    WHERE b.is_hero = true LIMIT 1;
 `;
 
 export const unsetAllHeroBannersQuery = `

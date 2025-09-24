@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useGetBannersQuery, useCreateBannerMutation, useUpdateBannerMutation, useDeleteBannerMutation, useSetHeroBannerMutation } from '../../../features/api/bannerApi'
 import { Button, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Box, Stack, Typography, IconButton, Autocomplete, Chip, Paper, Switch, Tooltip } from '@mui/material'
-import { toast } from 'sonner'
-import { DataTable, PageHeader, ActionButtons, ConfirmDialog, LoadingSpinner } from '../../../components/common'
+import { toast } from 'react-toastify'
+import { DataTable, PageHeader, ActionButtons, ConfirmDialog } from '../../../components/common'
+import BannerTableSkeleton from '../../../components/BannerTableSkeleton'
 import CloseIcon from '@mui/icons-material/Close'
 import { Formik, Form } from 'formik'
 import * as Yup from 'yup'
 import FileUploadField from '../../../components/FileUploadField'
 import { useGetMostUsedKeywordsQuery } from '../../../features/api/recipeApi'
+import { convertImageFileToBase64, getImageUrl } from '../../../utils/helper'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import StarIcon from '@mui/icons-material/Star'
 
@@ -43,10 +45,10 @@ const BannerManagement = () => {
         button_text: banner.button_text,
         keywords: banner.keywords || [],
         image: null,
-        imagePreview: banner.image_url,
+        imagePreview: getImageUrl(banner, 'banner'),
         is_hero: banner.is_hero || false
       })
-      setEditImagePreview(banner?.image_url || null)
+      setEditImagePreview(getImageUrl(banner, 'banner') || null)
     }
   }, [editId, data])
 
@@ -62,14 +64,27 @@ const BannerManagement = () => {
   const banners = data || []
 
   const handleAddSubmit = async (values, { setSubmitting, resetForm }) => {
-    const formData = new FormData()
-    formData.append('title', values.title)
-    formData.append('button_text', values.button_text)
-    formData.append('keywords', JSON.stringify(values.keywords))
-    formData.append('is_hero', values.is_hero)
-    if (values.image) formData.append('bannerImage', values.image)
+    let imageData = null
+    if (values.image) {
+      try {
+        imageData = await convertImageFileToBase64(values.image)
+      } catch {
+        toast.error('Failed to process image')
+        setSubmitting(false)
+        return
+      }
+    }
+    
+    const bannerData = {
+      title: values.title,
+      button_text: values.button_text,
+      keywords: values.keywords,
+      is_hero: values.is_hero,
+      imageData: imageData
+    }
+    
     try {
-      await createBanner(formData).unwrap()
+      await createBanner(bannerData).unwrap()
       toast.success('Banner added successfully')
       setAddOpen(false)
       resetForm()
@@ -80,14 +95,27 @@ const BannerManagement = () => {
   }
 
   const handleEditSubmit = async (values, { setSubmitting }) => {
-    const formData = new FormData()
-    formData.append('title', values.title)
-    formData.append('button_text', values.button_text)
-    formData.append('keywords', JSON.stringify(values.keywords))
-    formData.append('is_hero', values.is_hero)
-    if (values.image instanceof File) formData.append('bannerImage', values.image)
+    let imageData = null
+    if (values.image instanceof File) {
+      try {
+        imageData = await convertImageFileToBase64(values.image)
+      } catch {
+        toast.error('Failed to process image')
+        setSubmitting(false)
+        return
+      }
+    }
+    
+    const bannerData = {
+      title: values.title,
+      button_text: values.button_text,
+      keywords: values.keywords,
+      is_hero: values.is_hero,
+      imageData: imageData
+    }
+    
     try {
-      await updateBanner({ id: editId, inputData: formData }).unwrap()
+      await updateBanner({ id: editId, inputData: bannerData }).unwrap()
       toast.success('Banner updated successfully')
       setEditId(null)
     } catch {
@@ -110,7 +138,7 @@ const BannerManagement = () => {
     { header: 'Title', field: 'title' },
     { header: 'Button Text', field: 'button_text' },
     { header: 'Keywords', field: 'keywords', render: row => (row.keywords || []).join(', ') },
-    { header: 'Image', field: 'image_url', render: row => row.image_url ? <img src={row.image_url} alt="banner" className="h-12 w-20 object-cover rounded" /> : <span className="text-gray-400">No Image</span> },
+    { header: 'Image', field: 'image_url', render: row => getImageUrl(row, 'banner') ? <img src={getImageUrl(row, 'banner')} alt="banner" className="h-12 w-20 object-cover rounded" /> : <span className="text-gray-400">No Image</span> },
     {
       header: 'Hero',
       field: 'is_hero',
@@ -159,9 +187,15 @@ const BannerManagement = () => {
       <PageHeader title="Manage Banners">
         <Button variant="contained" color="primary" onClick={() => setAddOpen(true)} className="!bg-orange-500 hover:!bg-orange-600 w-full sm:w-auto">Add Banner</Button>
       </PageHeader>
-      <div className="overflow-x-auto rounded shadow bg-white min-h-[180px] flex items-center justify-center">
+      <div 
+        className="overflow-x-auto rounded shadow min-h-[180px] flex items-center justify-center"
+        style={{
+          backgroundColor: 'var(--card-bg)',
+          transition: 'background-color 0.3s ease'
+        }}
+      >
         {isLoading ? (
-          <LoadingSpinner className="my-10" />
+          <BannerTableSkeleton />
         ) : (
           <DataTable columns={columns} data={banners} />
         )}
@@ -359,7 +393,7 @@ const BannerManagement = () => {
               <Typography variant="subtitle1"><b>Button Text:</b> {viewBanner.button_text}</Typography>
               <Typography variant="subtitle1"><b>Keywords:</b> {(viewBanner.keywords || []).join(', ')}</Typography>
               {viewBanner.is_hero && <Typography variant="subtitle1" color="warning.main"><b>Hero Banner</b></Typography>}
-              {viewBanner.image_url && <img src={viewBanner.image_url} alt="banner" className="h-32 w-full object-cover rounded" />}
+              {getImageUrl(viewBanner, 'banner') && <img src={getImageUrl(viewBanner, 'banner')} alt="banner" className="h-32 w-full object-cover rounded" />}
             </Stack>
           )}
         </DialogContent>

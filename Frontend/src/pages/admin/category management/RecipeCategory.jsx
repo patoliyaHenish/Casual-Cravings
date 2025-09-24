@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGetRecipeCategoriesQuery, useDeleteRecipeCategoryByIdMutation, useCreateRecipeCategoryMutation } from '../../../features/api/categoryApi';
 import { Button } from '@mui/material';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import ViewCategoryDialog from './ViewCategoryDialog';
 import EditCategoryDialog from './EditCategoryDialog';
 import AddCategoryDialog from './AddCategoryDialog';
@@ -13,6 +13,7 @@ import {
   ConfirmDialog
 } from '../../../components/common';
 import { CircularProgress } from '@mui/material';
+import { useTheme } from '../../../context/ThemeContext';
 
 const RecipeCategory = () => {
   const [search, setSearch] = useState('');
@@ -22,17 +23,35 @@ const RecipeCategory = () => {
   const [deleteId, setDeleteId] = useState(null);
   const [editId, setEditId] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
+  const { isDarkMode } = useTheme();
 
   const { data, isLoading, isError } = useGetRecipeCategoriesQuery({ search, page, limit });
   const [deleteRecipeCategoryById, { isLoading: isDeleting }] = useDeleteRecipeCategoryByIdMutation();
   const [createRecipeCategory, { isLoading: isAdding }] = useCreateRecipeCategoryMutation();
 
   if (isLoading) return (
-    <div className="flex justify-center items-center h-40">
+    <div 
+      className="flex justify-center items-center h-40"
+      style={{
+        backgroundColor: 'var(--bg-primary)',
+        transition: 'background-color 0.3s ease'
+      }}
+    >
       <CircularProgress color="warning" />
     </div>
   );
-  if (isError) return <div className="text-red-500 text-center mt-10">Failed to load categories.</div>;
+  if (isError) return (
+    <div 
+      className="text-center mt-10"
+      style={{
+        color: '#d32f2f',
+        backgroundColor: 'var(--bg-primary)',
+        transition: 'all 0.3s ease'
+      }}
+    >
+      Failed to load categories.
+    </div>
+  );
 
   const categories = data?.data || [];
   const pagination = data?.pagination || { total: 0, page: 1, totalPages: 1 };
@@ -95,14 +114,8 @@ const RecipeCategory = () => {
       toast.error('Name is required');
       return;
     }
-    const formData = new FormData();
-    formData.append('name', values.name);
-    formData.append('description', values.description);
-    if (values.image) {
-      formData.append('recipeCategoryProfileImage', values.image);
-    }
     try {
-      await createRecipeCategory(formData).unwrap();
+      await createRecipeCategory(values).unwrap();
       toast.success('Category added successfully');
       handleAddClose();
     } catch (error) {
@@ -130,9 +143,27 @@ const RecipeCategory = () => {
       field: 'image',
       render: (row) => (
         row.image ? (
-          <img src={row.image} alt={row.name} className="h-12 w-12 object-cover rounded" />
+          <img 
+            src={row.image} 
+            alt={row.name} 
+            className="h-12 w-12 object-cover rounded"
+            style={{
+              border: `1px solid var(--border-color)`,
+              backgroundColor: 'var(--card-bg)',
+              padding: '2px'
+            }}
+          />
         ) : (
-          <span className="text-gray-400">No Image</span>
+          <div 
+            className="h-12 w-12 flex items-center justify-center rounded"
+            style={{
+              backgroundColor: 'var(--bg-tertiary)',
+              border: `1px solid var(--border-color)`,
+              color: 'var(--text-muted)'
+            }}
+          >
+            <span className="text-xs">No Image</span>
+          </div>
         )
       )
     },
@@ -150,7 +181,14 @@ const RecipeCategory = () => {
   ];
 
   return (
-   <div className={`p-6 mt-16 transition-all duration-200 ${isAnyDialogOpen ? 'blur-sm pointer-events-none select-none' : ''}`}>
+   <div 
+     className={`p-6 mt-16 transition-all duration-200 ${isAnyDialogOpen ? 'blur-sm pointer-events-none select-none' : ''}`}
+     style={{
+       backgroundColor: 'var(--bg-primary)',
+       minHeight: '100vh',
+       transition: 'all 0.3s ease'
+     }}
+   >
       <PageHeader title="Manage Recipe Categories">
         <SearchBar
           value={search}
@@ -163,7 +201,16 @@ const RecipeCategory = () => {
           color="warning"
           onClick={handleAddOpen}
           className="w-full sm:w-auto"
-          sx={{ mt: { xs: 1, sm: 0 } }}
+          sx={{ 
+            mt: { xs: 1, sm: 0 },
+            backgroundColor: 'var(--btn-primary)',
+            color: '#ffffff',
+            fontWeight: 600,
+            '&:hover': {
+              backgroundColor: 'var(--btn-primary-hover)',
+            },
+            transition: 'all 0.3s ease'
+          }}
         >
           Add Category
         </Button>

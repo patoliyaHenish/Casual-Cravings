@@ -2,6 +2,8 @@ import React, { useRef, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, CircularProgress } from '@mui/material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import { convertImageFileToBase64 } from '../../../utils/helper';
+import { toast } from 'react-toastify';
 
 const validationSchema = Yup.object().shape({
   name: Yup.string()
@@ -44,10 +46,23 @@ const AddCategoryDialog = ({
       image: null,
     },
     validationSchema,
-    onSubmit: (values, { resetForm }) => {
-      onSubmit(values);
-      resetForm();
-      setImagePreview(null);
+    onSubmit: async (values, { resetForm }) => {
+      try {
+        let imageData = null;
+        if (values.image) {
+          imageData = await convertImageFileToBase64(values.image);
+        }
+        
+        const submitValues = {
+          ...values,
+          imageData: imageData
+        };
+        onSubmit(submitValues);
+        resetForm();
+        setImagePreview(null);
+      } catch {
+        toast.error('Failed to process image');
+      }
     },
   });
 

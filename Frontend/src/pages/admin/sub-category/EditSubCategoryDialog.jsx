@@ -11,7 +11,8 @@ import {
 } from '@mui/material';
 import { useGetRecipeCategoriesQuery } from '../../../features/api/categoryApi';
 import { useGetRecipeSubCategoryByIdMutation, useUpdateRecipeSubCategoryMutation } from '../../../features/api/subCategoryApi';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
+import { convertImageFileToBase64 } from '../../../utils/helper';
 
 const EditSubCategoryDialog = ({
   open,
@@ -48,7 +49,6 @@ const EditSubCategoryDialog = ({
             removeImage: false,
           });
         } catch (error) {
-          console.error('Failed to fetch sub-category:', error);
           toast.error('Failed to load sub-category data');
         }
       }
@@ -92,20 +92,28 @@ const EditSubCategoryDialog = ({
       return;
     }
 
-    const formData = new FormData();
-    formData.append('subCategoryId', subCategoryId);
-    formData.append('categoryId', form.categoryId);
-    formData.append('name', form.name);
-    formData.append('description', form.description);
+    const updateData = {
+      subCategoryId: subCategoryId,
+      categoryId: form.categoryId,
+      name: form.name,
+      description: form.description
+    };
+    
     if (form.image instanceof File) {
-      formData.append('recipeSubCategoryProfileImage', form.image);
+      try {
+        const imageData = await convertImageFileToBase64(form.image);
+        updateData.imageData = imageData;
+      } catch (error) {
+        toast.error('Failed to process image');
+        return;
+      }
     }
     if (form.removeImage) {
-      formData.append('removeImage', 'true');
+      updateData.removeImage = true;
     }
 
     try {
-      await updateRecipeSubCategory(formData).unwrap();
+      await updateRecipeSubCategory(updateData).unwrap();
       toast.success('Sub-category updated successfully');
       onClose();
     } catch (error) {

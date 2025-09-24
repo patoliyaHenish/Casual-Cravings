@@ -4,8 +4,8 @@ import { Provider, useSelector } from 'react-redux'
 import './index.css'
 import App from './App.jsx'
 import { appStore } from './app/store.js'
-import { Toaster } from "sonner";
-import { UserProvider } from './context/UserContext.jsx'
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Loader from './components/loadingSpinner.jsx'
 import NoInternet from './components/NoInternet.jsx'
 
@@ -40,12 +40,26 @@ const RootWithOffline = () => {
   return (
     <StrictMode>
       <Provider store={appStore}>
-        <UserProvider>
-          <Custom>
-            <App />
-            <Toaster richColors position='bottom-center'/>
-          </Custom>
-        </UserProvider>
+        <Custom>
+          <App />
+          <ToastContainer
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="dark"
+            position="top-right"
+            toastStyle={{
+              backgroundColor: 'var(--card-bg)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)'
+            }}
+          />
+        </Custom>
       </Provider>
     </StrictMode>
   );

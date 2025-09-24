@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 import { Add, Remove, Edit, Save, Cancel, Delete, FormatListBulleted, TextFields } from '@mui/icons-material';
 import { useSearchIngredientsQuery, useCreateIngredientMutation, useDeleteIngredientMutation, useGetIngredientsPaginatedQuery as useGetIngredientsPaginatedQueryRaw, useGetAllIngredientsQuery } from '../features/api/ingredientApi';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 
 function splitFraction(formatted) {
   if (!formatted) return { whole: '', fraction: '' };

@@ -6,7 +6,6 @@ const UserContext = createContext();
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(undefined);
 
-
   const { data, isSuccess, isLoading, isError, error } = useMyProfileQuery();
 
    useEffect(() => {

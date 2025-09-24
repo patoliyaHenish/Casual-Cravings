@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress, TextField } from '@mui/material';
 import { useGetRecipeCategoryByIdQuery, useUpdateRecipeCategoryByIdMutation } from '../../../features/api/categoryApi';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
+import { convertImageFileToBase64 } from '../../../utils/helper';
 
 const EditCategoryDialog = ({
   open,
@@ -67,18 +68,26 @@ const EditCategoryDialog = ({
       return;
     }
 
-    const formData = new FormData();
-    formData.append('name', form.name);
-    formData.append('description', form.description);
+    const updateData = {
+      name: form.name,
+      description: form.description
+    };
+    
     if (form.image instanceof File) {
-      formData.append('recipeCategoryProfileImage', form.image);
+      try {
+        const imageData = await convertImageFileToBase64(form.image);
+        updateData.imageData = imageData;
+      } catch (error) {
+        toast.error('Failed to process image');
+        return;
+      }
     }
     if (form.removeImage) {
-      formData.append('removeImage', 'true');
+      updateData.removeImage = true;
     }
 
     try {
-      await updateRecipeCategoryById({ id: categoryId, inputData: formData }).unwrap();
+      await updateRecipeCategoryById({ id: categoryId, inputData: updateData }).unwrap();
       toast.success('Category updated successfully');
       onClose();
     } catch (error) {

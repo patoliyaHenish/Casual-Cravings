@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
 dotenv.config();
+import { handleServerError } from '../utils/erroHandler.js';
 
 export const pool = new Pool({
     user: process.env.DB_USER,
@@ -10,12 +11,10 @@ export const pool = new Pool({
     port: process.env.DB_PORT,
 });
 
-export const connectDB = async () => {
+export const connectDB = async (res) => {
     try {
         await pool.connect();
-        console.log('Database connected successfully');
     } catch (err) {
-        console.error('Database connection error:', err);
-        process.exit(1);
+        handleServerError(res, err, 'Database connection error');
     }
 };

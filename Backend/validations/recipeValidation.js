@@ -17,6 +17,21 @@ export const createRecipeValidation = yup.object().shape({
   cook_time: yup.number().required('Cook time is required'),
   serving_size: yup.number().required('Serving size is required'),
   keywords: yup.array().of(yup.string().trim().min(1, 'Keyword cannot be empty')).nullable(),
+  ingredients: yup.array().of(
+    yup.lazy((val) =>
+      val && val.isFreeText
+        ? yup.object().shape({
+            isFreeText: yup.boolean().oneOf([true]),
+            freeText: yup.string().required('Ingredient text is required'),
+          })
+        : yup.object().shape({
+            ingredient_id: yup.number().required(),
+            ingredient_name: yup.string().required(),
+            quantity: yup.number().required().min(0.1),
+            unit: yup.string().required(),
+          })
+    )
+  ).required('Ingredients are required').min(1, 'At least one ingredient is required'),
   recipe_instructions: yup
     .array()
     .of(yup.string().trim().min(1, 'Instruction cannot be empty').required())
@@ -41,6 +56,21 @@ export const updateRecipeValidation = yup.object().shape({
   cook_time: yup.number().required('Cook time is required'),
   serving_size: yup.number().required('Serving size is required'),
   keywords: yup.array().of(yup.string().trim().min(1, 'Keyword cannot be empty')).nullable(),
+  ingredients: yup.array().of(
+    yup.lazy((val) =>
+      val && val.isFreeText
+        ? yup.object().shape({
+            isFreeText: yup.boolean().oneOf([true]),
+            freeText: yup.string().required('Ingredient text is required'),
+          })
+        : yup.object().shape({
+            ingredient_id: yup.number().required(),
+            ingredient_name: yup.string().required(),
+            quantity: yup.number().required().min(0.1),
+            unit: yup.string().required(),
+          })
+    )
+  ).required('Ingredients are required').min(1, 'At least one ingredient is required'),
   recipe_instructions: yup
     .array()
     .of(yup.string().trim().min(1, 'Instruction cannot be empty').required())

@@ -52,5 +52,9 @@ export const updateProfileSchema = yup.object().shape({
     name: yup.string().max(255, 'Name must be at most 255 characters'),
     email: yup.string().email('Invalid email').max(255, 'Email must be at most 255 characters'),
     bio: yup.string().max(500, 'Bio must be at most 500 characters'),
-    profilePic: yup.mixed().nullable(),
+    profilePicData: yup.object().shape({
+        filename: yup.string(),
+        mime_type: yup.string(),
+        image_data: yup.string()
+    }).nullable(),
 });

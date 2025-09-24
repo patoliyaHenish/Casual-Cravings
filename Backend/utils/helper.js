@@ -3,17 +3,46 @@ import { handleValidationError } from './erroHandler.js';
 
 export const validate = (schema) => async (req, res, next) => {
     if (req.body) {
-        ['recipe_instructions'].forEach((field) => {
+        const fieldsToParse = ['recipe_instructions', 'ingredients', 'keywords', 'imageData'];
+        fieldsToParse.forEach((field) => {
             if (req.body[field] !== undefined && typeof req.body[field] === 'string') {
                 try {
                     req.body[field] = JSON.parse(req.body[field]);
                 } catch (error) {
-                    console.error(`Error parsing ${field}:`, error);
-                    return handleValidationError(res, `Invalid format for ${field}. Expected an array.`);
+                    return handleValidationError(res, `Invalid format for ${field}. Expected valid JSON.`);
+                }
+            }
+        });
+
+        const numericFields = ['category_id', 'categoryId', 'subCategoryId', 'prep_time', 'cook_time', 'serving_size'];
+        numericFields.forEach((field) => {
+            if (req.body[field] !== undefined && req.body[field] !== null && req.body[field] !== '') {
+                const numValue = Number(req.body[field]);
+                if (!isNaN(numValue)) {
+                    req.body[field] = numValue;
+                }
+            }
+        });
+
+        if (req.body.sub_category_id !== undefined) {
+            if (req.body.sub_category_id === '' || req.body.sub_category_id === 'null' || req.body.sub_category_id === null || req.body.sub_category_id === undefined || req.body.sub_category_id === 0) {
+                req.body.sub_category_id = null;
+            } else {
+                const numValue = Number(req.body.sub_category_id);
+                req.body.sub_category_id = isNaN(numValue) ? null : numValue;
+            }
+        }
+
+        const stringFields = ['title', 'description', 'video_url', 'image_url'];
+        stringFields.forEach((field) => {
+            if (req.body[field] !== undefined && req.body[field] !== null) {
+                if (req.body[field] === '') {
+                    req.body[field] = null;
                 }
             }
         });
     }
+    
     try {
         await schema.validate(req.body, { abortEarly: false});
         next();
@@ -48,7 +77,6 @@ export const generateAndSendOtp = async (email, pool) => {
 
         return await transporter.sendMail(mailOptions);
     } catch (err) {
-        console.error('Error generating or sending OTP:', err);
         throw err;
     }
 };
@@ -63,37 +91,6 @@ export const checkRole = (roles = []) => {
     };
 };
 
-export const safeDeleteLocalFile = async (filePath) => {
-    if (!filePath) return;
-    try {
-        await import('fs/promises').then(fs => fs.unlink(filePath));
-    } catch (err) {
-        if (err.code !== 'ENOENT') {
-            console.error('Error deleting local file:', err);
-        }
-    }
-};
-
-export const uploadImageAndCleanup = async (imagePath, folder, uploadFn) => {
-    const uploadResult = await uploadFn(imagePath, folder);
-    await safeDeleteLocalFile(imagePath);
-    return uploadResult.secure_url;
-};
-
-export const deleteCloudinaryImageByUrl = async (imageUrl, folder, deleteFn) => {
-    if (imageUrl) {
-        const publicIdMatch = imageUrl.match(/\/([^\/]+)\.[a-zA-Z]+$/);
-        if (publicIdMatch && publicIdMatch[1]) {
-            const publicId = `${folder}/${publicIdMatch[1]}`;
-            try {
-                await deleteFn(publicId);
-            } catch (err) {
-                console.error('Error deleting old image from Cloudinary:', err);
-            }
-        }
-    }
-};
-
 export const getYouTubeThumbnail = (url) => {
     const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
     const match = url.match(regExp);
@@ -101,4 +98,4 @@ export const getYouTubeThumbnail = (url) => {
         return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
     }
     return null;
-}
+};

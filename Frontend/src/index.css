@@ -1,22 +1,206 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&display=swap');
 
+:root {
+  /* Light theme (default) */
+  --navbar-bg: #2F5732;
+  --navbar-text: #ffffff;
+  --navbar-hover: #F4C542;
+  --navbar-accent: #374151;
+  --navbar-secondary: #1E3A29;
+  --navbar-light: #FFF8E7;
+  
+  /* Background colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #e9ecef;
+  
+  /* Text colors */
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  
+  /* Border colors */
+  --border-color: #d1d5db;
+  --border-light: #f3f4f6;
+  
+  /* Shadow colors */
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  --shadow-medium: rgba(0, 0, 0, 0.15);
+  --shadow-dark: rgba(0, 0, 0, 0.25);
+  
+  /* Card colors */
+  --card-bg: #ffffff;
+  --card-border: #e5e7eb;
+  
+  /* Button colors */
+  --btn-primary: #374151;
+  --btn-primary-hover: #1f2937;
+  --btn-secondary: #6b7280;
+  --btn-secondary-hover: #4b5563;
+}
+
+/* Dark theme */
+.dark {
+  --navbar-bg: #1a1a1a;
+  --navbar-text: #ffffff;
+  --navbar-hover: #6b7280;
+  --navbar-accent: #6b7280;
+  --navbar-secondary: #2d2d2d;
+  --navbar-light: #2d2d2d;
+  
+  /* Background colors */
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  
+  /* Text colors */
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+  
+  /* Border colors */
+  --border-color: #4b5563;
+  --border-light: #374151;
+  
+  /* Shadow colors */
+  --shadow-light: rgba(0, 0, 0, 0.4);
+  --shadow-medium: rgba(0, 0, 0, 0.5);
+  --shadow-dark: rgba(0, 0, 0, 0.7);
+  
+  /* Card colors */
+  --card-bg: #1f2937;
+  --card-border: #374151;
+  
+  /* Button colors */
+  --btn-primary: #6b7280;
+  --btn-primary-hover: #4b5563;
+  --btn-secondary: #9ca3af;
+  --btn-secondary-hover: #6b7280;
+}
 
 *, body, html {
-    font-family: "Roboto Condensed", sans-serif;
-  font-optical-sizing: auto;
-   font-style: normal;
+  /* font-family: "Winky Rough", sans-serif; */
+  /* font-optical-sizing: auto; */
+  /* font-style: normal; */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Dark mode specific improvements */
+.dark .MuiTableContainer-root {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Table headers for both light and dark modes */
+.MuiTableHead-root .MuiTableCell-root {
+  background-color: var(--btn-primary) !important;
+  color: #ffffff !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  font-weight: 600 !important;
+}
+
+.dark .MuiTableBody-root .MuiTableCell-root {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.dark .MuiTableRow-root:hover .MuiTableCell-root {
+  background-color: var(--bg-secondary) !important;
+}
+
+/* Improve disabled button contrast in dark mode */
+.dark .MuiButton-contained:disabled {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-muted) !important;
+  opacity: 0.6 !important;
+}
+
+/* Better image styling in dark mode */
+.dark img {
+  border: 1px solid var(--border-color) !important;
+  background-color: var(--card-bg) !important;
+}
+
+/* Improve select dropdown styling in dark mode */
+.dark .MuiSelect-select {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .MuiOutlinedInput-notchedOutline {
+  border-color: var(--border-color) !important;
+}
+
+.dark .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--btn-primary) !important;
+}
+
+.dark .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--btn-primary) !important;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 7px;
-  background: #fff7ed; 
-}
+  background: var(--navbar-light); 
+}   
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #fdba74;
+  background: var(--navbar-accent);
   border-radius: 5px;
 }
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #fdba74 #fff7ed;
+  scrollbar-color: var(--navbar-accent) var(--navbar-light);
+}
+
+/* Toast Container Styling */
+.Toastify__toast-container {
+  z-index: 9999 !important;
+}
+
+.Toastify__toast {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.Toastify__toast--success {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+.Toastify__toast--error {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--btn-primary) !important;
+}
+
+.Toastify__toast--info {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+.Toastify__progress-bar {
+  background-color: var(--btn-primary) !important;
+}
+
+.Toastify__close-button {
+  color: var(--text-primary) !important;
+  opacity: 0.7 !important;
+}
+
+.Toastify__close-button:hover {
+  opacity: 1 !important;
 }

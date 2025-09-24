@@ -60,10 +60,10 @@ export const recipeApi = createApi({
             invalidatesTags: ["Refetch_Recipe"],
         }),
         updateRecipeByAdmin: builder.mutation({
-            query: ({ id, formData }) => ({
+            query: ({ id, inputData }) => ({
                 url: `/update-recipe-by-admin/${id}`,
                 method: "PUT",
-                body: formData,
+                body: inputData,
             }),
             invalidatesTags: ["Refetch_Recipe"],
         }),
@@ -89,6 +89,18 @@ export const recipeApi = createApi({
                 method: "GET",
             }),
         }),
+        getPublicRecipesByKeywords: builder.query({
+            query: (keywords) => {
+                let queryParam = keywords;
+                if (Array.isArray(keywords)) {
+                    queryParam = JSON.stringify(keywords);
+                }
+                return {
+                    url: `/get-public-recipes-by-keywords?keywords=${encodeURIComponent(queryParam)}`,
+                    method: "GET",
+                };
+            },
+        }),
     })
 });
 
@@ -101,4 +113,5 @@ export const {
     useUpdateRecipeAdminApprovedStatusMutation,
     useUpdateRecipePublicApprovedStatusMutation,
     useGetMostUsedKeywordsQuery,
+    useGetPublicRecipesByKeywordsQuery,
 } = recipeApi;

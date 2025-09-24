@@ -18,7 +18,8 @@ import { useGetMostUsedKeywordsQuery } from '../../../features/api/recipeApi';
 import * as Yup from 'yup';
 import { Add, Remove, Edit, Save, Cancel } from '@mui/icons-material';
 import { Formik, Form } from 'formik';
-import { isValidYouTubeVideo, getYouTubeThumbnail, getYouTubeVideoTitle } from '../../../utils/helper';
+import { isValidYouTubeVideo, getYouTubeThumbnail, getYouTubeVideoTitle, convertImageFileToBase64 } from '../../../utils/helper';
+import { toast } from 'react-toastify';
 import FileUploadField from '../../../components/FileUploadField';
 import IngredientInput from '../../../components/IngredientInput';
 
@@ -199,20 +200,32 @@ const RecipeDialog = ({
       setImageFile(null);
       setImageRemoved(false);
       setImagePreview(null);
-      if (mode === 'edit' && form.image_url && !isYouTubeThumbnail(form.image_url)) {
+      if (mode === 'edit' && form.image && !isYouTubeThumbnail(form.image)) {
+        setImagePreview(form.image);
+      } else if (mode === 'edit' && form.image_url && !isYouTubeThumbnail(form.image_url)) {
         setImagePreview(form.image_url);
       }
-    }
-  }, [open, mode, form.image_url]);
-
-  useEffect(() => {
-    if (mode === 'edit' && form.image_url && !imageFile && !imageRemoved && !isYouTubeThumbnail(form.image_url)) {
-      setImagePreview(form.image_url);
-    }
-    if (mode === 'add' && !imageFile) {
+    } else {
+      setImageFile(null);
+      setImageRemoved(false);
       setImagePreview(null);
     }
-  }, [mode, form.image_url, imageFile, imageRemoved]);
+  }, [open, mode, form.image, form.image_url]);
+
+  useEffect(() => {
+    if (imageRemoved) {
+      setImagePreview(null);
+      return;
+    }
+    
+    if (mode === 'edit' && form.image && !imageFile && !isYouTubeThumbnail(form.image)) {
+      setImagePreview(form.image);
+    } else if (mode === 'edit' && form.image_url && !imageFile && !isYouTubeThumbnail(form.image_url)) {
+      setImagePreview(form.image_url);
+    } else if (mode === 'add' && !imageFile) {
+      setImagePreview(null);
+    }
+  }, [mode, form.image, form.image_url, imageFile, imageRemoved]);
 
   useEffect(() => {
     let ignore = false;
@@ -260,8 +273,22 @@ const RecipeDialog = ({
       }}
       maxWidth="sm"
       fullWidth
+      PaperProps={{
+        sx: {
+          backgroundColor: '#ffffff !important',
+          color: '#000000 !important',
+        }
+      }}
     >
-      <DialogTitle>{mode === 'edit' ? 'Edit Recipe' : 'Add Recipe'}</DialogTitle>
+      <DialogTitle
+        sx={{
+          backgroundColor: '#ffffff !important',
+          color: '#000000 !important',
+          borderBottom: '1px solid #e0e0e0',
+        }}
+      >
+        {mode === 'edit' ? 'Edit Recipe' : 'Add Recipe'}
+      </DialogTitle>
       <Formik
         initialValues={{
           ...form,
@@ -280,42 +307,71 @@ const RecipeDialog = ({
             if (!subCategoriesExist && values.sub_category_id) {
               errors.sub_category_id = 'No sub-categories exist for this category';
             }
+            if (!subCategoriesExist) {
+              values.sub_category_id = null;
+            }
           }
           return errors;
         }}
-        onSubmit={(values, actions) => {
-          let finalImageFile = imageFile;
+        onSubmit={async (values, actions) => {
           let finalImageUrl = values.image_url;
+          let keepExistingImage = false;
+          let imageData = null;
 
-          if (mode === 'edit' && imageRemoved) {
+          if (imageFile) {
+            try {
+              imageData = await convertImageFileToBase64(imageFile);
+              finalImageUrl = '';
+              keepExistingImage = false;
+            } catch {
+              toast.error('Failed to process image');
+              return;
+            }
+          }
+          else if (mode === 'edit' && imageRemoved) {
             finalImageUrl = '';
-            finalImageFile = null;
+            keepExistingImage = false;
+            values.image = '';
           }
-          else if (imageFile) {
-            // Empty block
+          else if (mode === 'edit' && imagePreview && imagePreview.startsWith('data:') && !imageRemoved) {
+            keepExistingImage = true;
+            finalImageUrl = '';
           }
-          else if (imagePreview) {
+          else if (imagePreview && !imageRemoved) {
             finalImageUrl = imagePreview;
-            finalImageFile = null;
+            keepExistingImage = false;
           }
           else if (videoThumbnail) {
             finalImageUrl = videoThumbnail;
-            finalImageFile = null;
+            keepExistingImage = false;
+          }
+          else {
+            finalImageUrl = '';
+            keepExistingImage = false;
           }
 
           onSubmit(
             {
               ...values,
               image_url: finalImageUrl,
+              keepExistingImage: keepExistingImage,
+              imageRemoved: mode === 'edit' && imageRemoved,
+              imageData: imageData
             },
-            actions,
-            finalImageFile
+            actions
           );
         }}
       >
-        {({ values, handleChange, handleBlur, setFieldValue, errors, touched, isValid, dirty }) => (
+        {({ values, handleChange, handleBlur, setFieldValue, errors, touched, isValid }) => (
           <Form>
-            <DialogContent dividers className="custom-scrollbar">
+            <DialogContent 
+              dividers 
+              className="custom-scrollbar"
+              sx={{
+                backgroundColor: '#ffffff !important',
+                color: '#000000 !important',
+              }}
+            >
               <TextField
                 label="Title"
                 name="title"
@@ -522,19 +578,70 @@ const RecipeDialog = ({
                   </div>
                 </div>
               )}
-              <TextField
-                select
-                label="Category"
-                name="category_id"
-                value={values.category_id || ''}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                fullWidth
-                margin="normal"
-                required
-                error={touched.category_id && Boolean(errors.category_id)}
-                helperText={touched.category_id && errors.category_id}
-              >
+               <TextField
+                 select
+                 label="Category"
+                 name="category_id"
+                 value={values.category_id || ''}
+                 onChange={(e) => {
+                   handleChange(e);
+                   setFieldValue('sub_category_id', null);
+                 }}
+                 onBlur={handleBlur}
+                 fullWidth
+                 margin="normal"
+                 required
+                 error={touched.category_id && Boolean(errors.category_id)}
+                 helperText={touched.category_id && errors.category_id}
+                 sx={{
+                   '& .MuiOutlinedInput-root': {
+                     backgroundColor: '#ffffff !important',
+                     '& fieldset': {
+                       borderColor: '#c4c4c4',
+                     },
+                     '&:hover fieldset': {
+                       borderColor: '#1976d2',
+                     },
+                     '&.Mui-focused fieldset': {
+                       borderColor: '#1976d2',
+                     },
+                   },
+                   '& .MuiInputLabel-root': {
+                     color: '#000000 !important',
+                     '&.Mui-focused': {
+                       color: '#1976d2 !important',
+                     },
+                   },
+                   '& .MuiSelect-select': {
+                     color: '#000000 !important',
+                     backgroundColor: '#ffffff !important',
+                   },
+                   '& .MuiSelect-icon': {
+                     color: '#000000 !important',
+                   },
+                 }}
+                 SelectProps={{
+                   MenuProps: {
+                     PaperProps: {
+                       sx: {
+                         backgroundColor: '#ffffff !important',
+                         color: '#000000 !important',
+                         '& .MuiMenuItem-root': {
+                           backgroundColor: '#ffffff !important',
+                           color: '#000000 !important',
+                           '&:hover': {
+                             backgroundColor: '#f5f5f5 !important',
+                           },
+                           '&.Mui-selected': {
+                             backgroundColor: '#e3f2fd !important',
+                             color: '#1976d2 !important',
+                           },
+                         },
+                       },
+                     },
+                   },
+                 }}
+               >
                 <MenuItem value="">Select Category</MenuItem>
                 {categories.map((cat) => (
                   <MenuItem key={cat.category_id} value={cat.category_id}>
@@ -548,18 +655,66 @@ const RecipeDialog = ({
                 );
                 const subCategoriesExist = categorySubCategories.length > 0;
                 return subCategoriesExist ? (
-                  <TextField
-                    select
-                    label="Sub Category (Optional)"
-                    name="sub_category_id"
-                    value={values.sub_category_id || ''}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    fullWidth
-                    margin="normal"
-                    error={touched.sub_category_id && Boolean(errors.sub_category_id)}
-                    helperText={touched.sub_category_id && errors.sub_category_id}
-                  >
+                   <TextField
+                     select
+                     label="Sub Category (Optional)"
+                     name="sub_category_id"
+                     value={values.sub_category_id || ''}
+                     onChange={handleChange}
+                     onBlur={handleBlur}
+                     fullWidth
+                     margin="normal"
+                     error={touched.sub_category_id && Boolean(errors.sub_category_id)}
+                     helperText={touched.sub_category_id && errors.sub_category_id}
+                     sx={{
+                       '& .MuiOutlinedInput-root': {
+                         backgroundColor: '#ffffff !important',
+                         '& fieldset': {
+                           borderColor: '#c4c4c4',
+                         },
+                         '&:hover fieldset': {
+                           borderColor: '#1976d2',
+                         },
+                         '&.Mui-focused fieldset': {
+                           borderColor: '#1976d2',
+                         },
+                       },
+                       '& .MuiInputLabel-root': {
+                         color: '#000000 !important',
+                         '&.Mui-focused': {
+                           color: '#1976d2 !important',
+                         },
+                       },
+                       '& .MuiSelect-select': {
+                         color: '#000000 !important',
+                         backgroundColor: '#ffffff !important',
+                       },
+                       '& .MuiSelect-icon': {
+                         color: '#000000 !important',
+                       },
+                     }}
+                     SelectProps={{
+                       MenuProps: {
+                         PaperProps: {
+                           sx: {
+                             backgroundColor: '#ffffff !important',
+                             color: '#000000 !important',
+                             '& .MuiMenuItem-root': {
+                               backgroundColor: '#ffffff !important',
+                               color: '#000000 !important',
+                               '&:hover': {
+                                 backgroundColor: '#f5f5f5 !important',
+                               },
+                               '&.Mui-selected': {
+                                 backgroundColor: '#e3f2fd !important',
+                                 color: '#1976d2 !important',
+                               },
+                             },
+                           },
+                         },
+                       },
+                     }}
+                   >
                     <MenuItem value="">Select Sub Category</MenuItem>
                     {categorySubCategories.map((sc) => (
                       <MenuItem key={sc.sub_category_id} value={sc.sub_category_id}>
@@ -695,42 +850,72 @@ const RecipeDialog = ({
                 style={{ marginBottom: 16 }}
                 error={Boolean(errors.image_url)}
                 helperText={touched.image_url && errors.image_url}
-                showRemoveButton={mode === 'edit' && !imageRemoved}
-                onRemove={() => setImageRemoved(true)}
+                showRemoveButton={mode === 'edit' && imagePreview && !imageRemoved}
+                onRemove={() => {
+                  setImageRemoved(true);
+                  setImagePreview(null);
+                  setImageFile(null);
+                  setFieldValue('image_url', '');
+                  setFieldValue('image', '');
+                }}
               />
             </DialogContent>
-            <DialogActions>
-              <Button onClick={onClose} disabled={isLoading}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={
-                  !isValid ||
-                  !dirty ||
-                  isLoading ||
-                  !values.title ||
-                  !values.description ||
-                  values.description.trim().split(/\s+/).filter(Boolean).length < 50 ||
-                  values.prep_time === null || values.prep_time === undefined ||
-                  values.cook_time === null || values.cook_time === undefined ||
-                  values.serving_size === null || values.serving_size === undefined ||
-                  !values.category_id ||
-
-                  values.recipe_instructions.length === 0 ||
-                  !values.video_url ||
-                  !values.ingredients ||
-                  values.ingredients.filter(
-                    ing => (ing.isFreeText && ing.freeText?.trim()) ||
-                           (!ing.isFreeText && ing.ingredient_id && ing.ingredient_name && ing.quantity && ing.unit)
-                  ).length === 0
-                }
-                startIcon={isLoading && <CircularProgress size={20} />}
-              >
-                {isLoading ? 'Saving...' : mode === 'edit' ? 'Update Recipe' : 'Add Recipe'}
-              </Button>
-            </DialogActions>
+             <DialogActions
+               sx={{
+                 backgroundColor: '#ffffff !important',
+                 padding: '16px 24px',
+                 borderTop: '1px solid #e0e0e0',
+               }}
+             >
+               <Button 
+                 onClick={onClose} 
+                 disabled={isLoading}
+                 sx={{
+                   color: '#1976d2 !important',
+                   '&:hover': {
+                     backgroundColor: 'rgba(25, 118, 210, 0.04) !important',
+                   },
+                 }}
+               >
+                 Cancel
+               </Button>
+               <Button
+                 type="submit"
+                 variant="contained"
+                 disabled={
+                   !isValid ||
+                   isLoading ||
+                   !values.title ||
+                   !values.description ||
+                   values.description.trim().split(/\s+/).filter(Boolean).length < 50 ||
+                   values.prep_time === null || values.prep_time === undefined ||
+                   values.cook_time === null || values.cook_time === undefined ||
+                   values.serving_size === null || values.serving_size === undefined ||
+                   !values.category_id ||
+                   values.recipe_instructions.length === 0 ||
+                   !values.video_url ||
+                   !values.ingredients ||
+                   values.ingredients.filter(
+                     ing => (ing.isFreeText && ing.freeText?.trim()) ||
+                            (!ing.isFreeText && ing.ingredient_id && ing.ingredient_name && ing.quantity && ing.unit)
+                   ).length === 0
+                 }
+                 startIcon={isLoading && <CircularProgress size={20} />}
+                 sx={{
+                   backgroundColor: '#1976d2 !important',
+                   color: '#ffffff !important',
+                   '&:hover': {
+                     backgroundColor: '#1565c0 !important',
+                   },
+                   '&:disabled': {
+                     backgroundColor: '#e0e0e0 !important',
+                     color: '#9e9e9e !important',
+                   },
+                 }}
+               >
+                 {isLoading ? 'Saving...' : mode === 'edit' ? 'Update Recipe' : 'Add Recipe'}
+               </Button>
+             </DialogActions>
           </Form>
         )}
       </Formik>
