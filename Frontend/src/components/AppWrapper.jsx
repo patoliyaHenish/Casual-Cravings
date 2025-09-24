@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useLoading } from '../context/LoadingContext';
 import { toast } from 'react-toastify';
-import Loader from './LoadingSpinner';
+import Loader from '../components/LoadingSpinner';
 
 const AppWrapper = () => {
   const { user, isLoading: userLoading } = useUser();

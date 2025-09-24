@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import Loader from '../components/loadingSpinner';
+import Loader from '../components/LoadingSpinner';
 import AdminVerticalNavbar from '../components/AdminVerticalNavbar';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';

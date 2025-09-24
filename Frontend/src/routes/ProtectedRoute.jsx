@@ -1,7 +1,7 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
-import Loader from "../components/loadingSpinner";
+import Loader from "../components/LoadingSpinner";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, isLoading } = useUser();
